@@ -10,7 +10,6 @@ enum FileType { TYPE_PNG_IMAGE, TYPE_JPEG_IMAGE, TYPE_UNKNOWN, TYPE_NOT_FOUND };
 
 int is_image_file(enum FileType type);
 
-/* The name of a type as it is worth showing a reader. Never NULL. */
 const char *file_type_name(enum FileType type);
 
 enum FileType get_file_type(const char *target);

@@ -27,5 +27,5 @@ jobs:
 
       - name: Push mirror to Codeberg
         run: |
-          git remote add codeberg ssh://git@codeberg.org/IdanKoblik/hush-hush.git
+          git remote add codeberg ssh://git@codeberg.org/IdanKoblik/veil.git
           git push --mirror codeberg

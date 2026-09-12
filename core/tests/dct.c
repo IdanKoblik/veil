@@ -1,9 +1,9 @@
 #include "greatest.h"
 #include "helpers.h"
 
-#include "core/codecs/codec.h"
-#include "core/fs/file.h"
-#include "core/handlers/image.h"
+#include "veil/codecs/codec.h"
+#include "veil/fs/file.h"
+#include "veil/handlers/image.h"
 
 #include <stdio.h>
 #include <stdlib.h>

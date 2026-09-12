@@ -1,5 +1,5 @@
 <!--
-Thanks for contributing to Hush Hush.
+Thanks for contributing to Veil.
 
 Keep the title short and imperative, e.g. "Skip the alpha channel on RGBA
 carriers". Mark the pull request as a draft while it is still in progress.
@@ -45,8 +45,8 @@ commands you ran. A round trip through a real image is the usual proof:
 
 ```
 $ make test
-$ ./hh encode carrier.png payload.bin -o out.png -c lsbm
-$ ./hh decode out.png -o recovered.bin
+$ ./veil encode carrier.png payload.bin -o out.png -c lsbm
+$ ./veil decode out.png -o recovered.bin
 $ ./devtools/checksum.sh payload.bin recovered.bin
 ```
 

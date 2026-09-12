@@ -15,7 +15,7 @@ on:
         type: boolean
         default: true
       build-gui:
-        description: 'Build the GUI. Only the gui suite needs it, and it drags in GLFW, a GL stack and the ImGui fetch.'
+        description: 'Build the GUI. Only the gui suite needs it, and it drags in X11, a GL stack and the raylib and ImGui fetch.'
         required: false
         type: boolean
         default: false
@@ -34,7 +34,7 @@ env:
   # Only the GUI needs a window system and a GL stack, so these are installed on
   # demand and the core and CLI jobs stay lean.
   APT_GUI_PACKAGES: >-
-    libglfw3-dev
+    libx11-dev
     libgl1-mesa-dev
     libxrandr-dev
     libxinerama-dev
@@ -75,9 +75,9 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
             -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
-            -DHH_WARNINGS_AS_ERRORS=ON \
-            -DHH_BUILD_CLI=${{ inputs.build-cli && 'ON' || 'OFF' }} \
-            -DHH_BUILD_GUI=${{ inputs.build-gui && 'ON' || 'OFF' }}
+            -DVEIL_WARNINGS_AS_ERRORS=ON \
+            -DVEIL_BUILD_CLI=${{ inputs.build-cli && 'ON' || 'OFF' }} \
+            -DVEIL_BUILD_GUI=${{ inputs.build-gui && 'ON' || 'OFF' }}
 
       - name: Build
         run: cmake --build build -j"$(nproc)"
@@ -85,7 +85,7 @@ jobs:
       - name: Test
         run: ctest --test-dir build -R '^${{ inputs.suite }}$' --output-on-failure
 
-      # The suite's own e2e tests drive hh against generated images. This runs it
+      # The suite's own e2e tests drive veil against generated images. This runs it
       # against the real assets instead, so the committed PNG and JPEG stay
       # decodable and the JPEG/DCT path gets a non-synthetic carrier.
       - name: Round trip
@@ -98,12 +98,12 @@ jobs:
 
           for codec in lsbr lsbm; do
             for phrase in "correct horse battery staple" ""; do
-              printf '%s\n' "$phrase" | ./build/hh encode assets/hush.png payload.bin -o "carrier-$codec.png" -c "$codec"
-              printf '%s\n' "$phrase" | ./build/hh decode "carrier-$codec.png" -o "recovered-$codec.bin"
+              printf '%s\n' "$phrase" | ./build/veil encode assets/veil.png payload.bin -o "carrier-$codec.png" -c "$codec"
+              printf '%s\n' "$phrase" | ./build/veil decode "carrier-$codec.png" -o "recovered-$codec.bin"
               ./devtools/checksum.sh payload.bin "recovered-$codec.bin"
 
-              printf '%s\n' "$phrase" | ./build/hh encode assets/hush.jpg small.bin -o "carrier-$codec.jpg" -c "$codec"
-              printf '%s\n' "$phrase" | ./build/hh decode "carrier-$codec.jpg" -o "recovered-jpeg-$codec.bin"
+              printf '%s\n' "$phrase" | ./build/veil encode assets/veil.jpg small.bin -o "carrier-$codec.jpg" -c "$codec"
+              printf '%s\n' "$phrase" | ./build/veil decode "carrier-$codec.jpg" -o "recovered-jpeg-$codec.bin"
               ./devtools/checksum.sh small.bin "recovered-jpeg-$codec.bin"
             done
           done

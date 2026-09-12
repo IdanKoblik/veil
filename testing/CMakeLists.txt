@@ -1,6 +1,6 @@
-add_library(hh_testing INTERFACE)
-add_library(hushhush::testing ALIAS hh_testing)
+add_library(veil_testing INTERFACE)
+add_library(veil::testing ALIAS veil_testing)
 
-target_include_directories(hh_testing INTERFACE
+target_include_directories(veil_testing INTERFACE
     "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>")
-target_link_libraries(hh_testing INTERFACE hushhush::core)
+target_link_libraries(veil_testing INTERFACE veil::core)

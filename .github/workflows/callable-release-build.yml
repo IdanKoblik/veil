@@ -18,10 +18,10 @@ env:
     pkg-config
     libsodium-dev
     libjpeg-dev
-  # GLFW and the GL stack the GUI links against, plus the X11 development
-  # packages GLFW itself pulls in at link time.
+  # The X11 and GL headers raylib builds its bundled GLFW against. raylib
+  # itself is fetched at configure time, so no GLFW package is installed.
   APT_GUI_PACKAGES: >-
-    libglfw3-dev
+    libx11-dev
     libgl1-mesa-dev
     libxrandr-dev
     libxinerama-dev
@@ -57,8 +57,8 @@ jobs:
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DHH_BUILD_TESTS=OFF \
-            -DHH_BUILD_GUI=ON
+            -DVEIL_BUILD_TESTS=OFF \
+            -DVEIL_BUILD_GUI=ON
           cmake --build build -j"$(nproc)"
 
       - name: Package
@@ -83,13 +83,13 @@ jobs:
           # against someone wants, with nothing to unpack. The architecture
           # suffix keeps them from colliding across the matrix.
           suffix="${VERSION}-linux-${ARCH}"
-          name="hush-hush-$suffix"
+          name="veil-$suffix"
 
           mkdir -p dist
 
-          cp build/hh "dist/hh-$suffix"
-          cp build/hh-gui "dist/hh-gui-$suffix"
-          cp build/lib/libhushhush.a "dist/libhushhush-$suffix.a"
+          cp build/veil "dist/veil-$suffix"
+          cp build/veil-gui "dist/veil-gui-$suffix"
+          cp build/lib/libveil.a "dist/libveil-$suffix.a"
 
           echo "name=$name" >> "$GITHUB_OUTPUT"
 
@@ -101,6 +101,6 @@ jobs:
         with:
           name: ${{ steps.package.outputs.name }}
           path: |
-            dist/hh-*
-            dist/libhushhush-*.a
+            dist/veil-*
+            dist/libveil-*.a
           if-no-files-found: error

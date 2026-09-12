@@ -1,7 +1,7 @@
 #include "file.h"
-#include <core/handlers/image.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <veil/handlers/image.h>
 
 int is_image_file(enum FileType type) {
     return type == TYPE_JPEG_IMAGE || type == TYPE_PNG_IMAGE;

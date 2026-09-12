@@ -1,8 +1,8 @@
 #include "image.h"
-#include <core/codecs/dct.h>
-#include <core/codecs/lsb.h>
-#include <core/log.h>
 #include <stb_image.h>
+#include <veil/codecs/image/dct.h>
+#include <veil/codecs/image/lsb.h>
+#include <veil/log.h>
 
 #define HEADER_SIZE 12
 

@@ -1,9 +1,9 @@
 blank_issues_enabled: false
 contact_links:
   - name: Report a security vulnerability
-    url: https://github.com/IdanKoblik/hush-hush/security/advisories/new
+    url: https://github.com/IdanKoblik/veil/security/advisories/new
     about: Anything that leaks a passphrase, a key, or a payload belongs here, privately, not in a public issue.
 
   - name: How it works
-    url: https://github.com/IdanKoblik/hush-hush#how-it-works
+    url: https://github.com/IdanKoblik/veil#how-it-works
     about: The container layout, the slot mapping and the encryption are documented in the README.

@@ -10,7 +10,7 @@ body:
         solution. A different solution often fits better, and we can only see
         that if we understand what you're up against.
 
-        Hush Hush is a tool for privacy, research and learning how
+        Veil is a tool for privacy, research and learning how
         steganography works. Requests aimed at moving stolen data, evading a
         specific detection system, or hiding malware will be declined.
 
@@ -19,9 +19,9 @@ body:
     attributes:
       label: Preflight
       options:
-        - label: I searched the [existing issues](https://github.com/IdanKoblik/hush-hush/issues?q=is%3Aissue) and this hasn't been requested.
+        - label: I searched the [existing issues](https://github.com/IdanKoblik/veil/issues?q=is%3Aissue) and this hasn't been requested.
           required: true
-        - label: I read the [README](https://github.com/IdanKoblik/hush-hush#readme) and this isn't already possible.
+        - label: I read the [README](https://github.com/IdanKoblik/veil#readme) and this isn't already possible.
           required: true
 
   - type: textarea

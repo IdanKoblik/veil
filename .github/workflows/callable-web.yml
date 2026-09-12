@@ -86,7 +86,7 @@ jobs:
           set -euo pipefail
 
           mkdir -p site
-          cp web/index.html site/
+          cp web/index.html web/app.js web/app.css site/
           cp -r web/dist site/dist
 
           du -sh site

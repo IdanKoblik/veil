@@ -1,5 +1,5 @@
 name: Bug report
-description: Report something in Hush Hush that doesn't work the way it should.
+description: Report something in Veil that doesn't work the way it should.
 title: '[Bug]: '
 labels: ['type/bug']
 body:
@@ -11,7 +11,7 @@ body:
 
         For a **security vulnerability**, don't use this form. Report it
         privately via
-        [Security Advisories](https://github.com/IdanKoblik/hush-hush/security/advisories/new).
+        [Security Advisories](https://github.com/IdanKoblik/veil/security/advisories/new).
 
         Please don't attach an image that still carries something you'd rather
         keep hidden. Reproduce the problem with a throwaway carrier and a
@@ -22,7 +22,7 @@ body:
     attributes:
       label: Preflight
       options:
-        - label: I searched the [existing issues](https://github.com/IdanKoblik/hush-hush/issues?q=is%3Aissue) and this hasn't been reported.
+        - label: I searched the [existing issues](https://github.com/IdanKoblik/veil/issues?q=is%3Aissue) and this hasn't been reported.
           required: true
         - label: I can reproduce this on the latest `main`.
           required: true
@@ -44,8 +44,8 @@ body:
       label: Steps to reproduce
       description: The exact commands you ran, from a clean start.
       placeholder: |
-        1. ./hh encode carrier.png payload.bin -o out.png -c lsbm
-        2. ./hh decode out.png -o recovered.bin
+        1. ./veil encode carrier.png payload.bin -o out.png -c lsbm
+        2. ./veil decode out.png -o recovered.bin
         3. The decode fails
       render: shell
     validations:

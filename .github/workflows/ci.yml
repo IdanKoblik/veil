@@ -252,10 +252,10 @@ jobs:
           if [ "$DRAFT" = "true" ]; then args+=(--draft); fi
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
 
-          # Loose assets only: hh and hh-gui per architecture (both matched by
-          # dist/hh-*), libhushhush.a to link against, and the checksum list.
+          # Loose assets only: veil and veil-gui per architecture (both matched by
+          # dist/veil-*), libveil.a to link against, and the checksum list.
           gh release create "$TAG" "${args[@]}" \
-            dist/hh-* \
-            dist/libhushhush-*.a \
+            dist/veil-* \
+            dist/libveil-*.a \
             dist/checksums.txt
           echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"

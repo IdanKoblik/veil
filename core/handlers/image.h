@@ -1,7 +1,7 @@
 #pragma once
 
-#include <core/codecs/codec.h>
-#include <core/fs/file.h>
+#include <veil/codecs/codec.h>
+#include <veil/fs/file.h>
 
 #ifdef __cplusplus
 extern "C" {
