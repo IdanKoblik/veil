@@ -1,5 +1,5 @@
 #include "file.h"
-#include <core/handlers/image.h>
+#include <veil/handlers/image.h>
 #include <stdio.h>
 #include <stdlib.h>
 

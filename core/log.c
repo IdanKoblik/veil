@@ -1,3 +1,3 @@
-#include <core/log.h>
+#include "log.h"
 
 int verbose = 0;

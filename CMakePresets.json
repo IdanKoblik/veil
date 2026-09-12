@@ -1,0 +1,167 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": {
+        "major": 3,
+        "minor": 25,
+        "patch": 0
+    },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "VEIL_BUILD_WEB": "OFF"
+            }
+        },
+        {
+            "name": "dev",
+            "displayName": "Debug build with tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "VEIL_BUILD_CLI": "ON",
+                "VEIL_BUILD_GUI": "ON",
+                "VEIL_BUILD_TESTS": "ON"
+            }
+        },
+        {
+            "name": "release",
+            "displayName": "Optimised build, no tests",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "VEIL_BUILD_CLI": "ON",
+                "VEIL_BUILD_GUI": "ON",
+                "VEIL_WARNINGS_AS_ERRORS": "ON",
+                "VEIL_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "cli",
+            "displayName": "Optimised build of the command line app only",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "VEIL_BUILD_CLI": "ON",
+                "VEIL_BUILD_GUI": "OFF",
+                "VEIL_WARNINGS_AS_ERRORS": "ON",
+                "VEIL_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "gui",
+            "displayName": "Optimised build of the desktop app only",
+            "inherits": "base",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Release",
+                "VEIL_BUILD_CLI": "OFF",
+                "VEIL_BUILD_GUI": "ON",
+                "VEIL_WARNINGS_AS_ERRORS": "ON",
+                "VEIL_BUILD_TESTS": "OFF"
+            }
+        },
+        {
+            "name": "coverage",
+            "displayName": "Instrumented build for devtools/coverage.sh",
+            "inherits": "base",
+            "binaryDir": "${sourceDir}/coverage",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "VEIL_BUILD_TESTS": "ON",
+                "VEIL_ENABLE_COVERAGE": "ON"
+            }
+        }
+    ],
+    "buildPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev"
+        },
+        {
+            "name": "release",
+            "configurePreset": "release"
+        },
+        {
+            "name": "cli",
+            "configurePreset": "cli"
+        },
+        {
+            "name": "gui",
+            "configurePreset": "gui"
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage"
+        }
+    ],
+    "testPresets": [
+        {
+            "name": "dev",
+            "configurePreset": "dev",
+            "output": {
+                "outputOnFailure": true
+            }
+        },
+        {
+            "name": "coverage",
+            "configurePreset": "coverage",
+            "output": {
+                "outputOnFailure": true
+            }
+        }
+    ],
+    "workflowPresets": [
+        {
+            "name": "dev",
+            "displayName": "Configure, build and test the debug tree",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "dev"
+                },
+                {
+                    "type": "build",
+                    "name": "dev"
+                },
+                {
+                    "type": "test",
+                    "name": "dev"
+                }
+            ]
+        },
+        {
+            "name": "release",
+            "displayName": "Configure and build the optimised tree",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "release"
+                },
+                {
+                    "type": "build",
+                    "name": "release"
+                }
+            ]
+        },
+        {
+            "name": "coverage",
+            "displayName": "Configure, build and test the instrumented tree",
+            "steps": [
+                {
+                    "type": "configure",
+                    "name": "coverage"
+                },
+                {
+                    "type": "build",
+                    "name": "coverage"
+                },
+                {
+                    "type": "test",
+                    "name": "coverage"
+                }
+            ]
+        }
+    ]
+}

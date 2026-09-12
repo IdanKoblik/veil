@@ -1,11 +1,11 @@
 #include "../args.h"
 #include "../prompt.h"
 #include "command.h"
-#include "core/fs/checksum.h"
-#include <core/codecs/codec.h>
-#include <core/fs/file.h>
-#include <core/handlers/image.h>
-#include <core/log.h>
+#include <veil/fs/checksum.h>
+#include <veil/fs/file.h>
+#include <veil/handlers/image.h>
+#include <veil/log.h>
+#include <veil/encode.h>
 #include <flag.h>
 #include <sodium.h>
 #include <stdlib.h>
@@ -52,14 +52,7 @@ static int exec(int argc, char *argv[]) {
         return EXEC_GENERIC_ERROR;
     }
 
-    if (type == TYPE_PNG_IMAGE && (codec != CODEC_LSB_REPLACEMENT && codec != CODEC_LSB_MATCHING)) {
-        ERROR("Invalid codec for a png image");
-        return EXEC_GENERIC_ERROR;
-    } else if (type == TYPE_JPEG_IMAGE) {
-        codec = CODEC_DCT;
-    }
-
-    char passphrase[PASSPHRASE_MAX];
+    PASSPHRASE(passphrase);
     if (read_passphrase("Passphrase (leave empty to disable encryption): ", passphrase, sizeof(passphrase)) < 0) {
         ERROR("Failed to read the passphrase");
         return EXEC_GENERIC_ERROR;
@@ -76,64 +69,48 @@ static int exec(int argc, char *argv[]) {
     }
 
     INFO("Read %zu bytes from %s", data_len, data_file);
-    if (data_len <= 0) {
-        ERROR("Cannot encode data, the data is empty");
-        return EXEC_GENERIC_ERROR;
+
+    struct ImageCtx check = {0};
+    if (encode(target, output_file, codec, passphrase, data, data_len, &check) < 0) {
+        ERROR("Failed to encode target (%s)", target);
+        goto fail;
     }
 
-    if (is_image_file(type)) {
-        struct ImageCtx ctx = {.source_file = target,
-                               .output_file = output_file,
+    if (verify) {
+        check.source_file = output_file;
+        check.codec_type = CODEC_UNKNOWN;
 
-                               .image_type = type,
-                               .codec_type = codec,
+        unsigned char *output_data = NULL;
+        size_t output_data_len = 0;
 
-                               .passphrase = passphrase[0] ? passphrase : NULL};
-
-        if (encode_image(&ctx, data, data_len) < 0) {
-            ERROR("Failed to encode data to the targeted file");
+        if (decode_image(&check, &output_data, &output_data_len) < 0) {
+            ERROR("Failed to decode the encoded target");
             goto fail;
         }
 
-        if (verify) {
-            struct ImageCtx check = ctx;
-            check.source_file = output_file;
-            check.codec_type = CODEC_UNKNOWN;
+        bool verified = false;
+        if (output_data_len != data_len)
+            ERROR("Read %zu bytes back out of %s but encoded %zu, encoding failed", output_data_len, output_file, data_len);
+        else if (calculate_checksum(data, data_len) != calculate_checksum(output_data, output_data_len))
+            ERROR("What came back out of %s is not what went in, encoding failed", output_file);
+        else
+            verified = true;
 
-            unsigned char *output_data = NULL;
-            size_t output_data_len = 0;
+        sodium_memzero(output_data, output_data_len);
+        free(output_data);
 
-            if (decode_image(&check, &output_data, &output_data_len) < 0) {
-                ERROR("Failed to decode the encoded target");
-                goto fail;
-            }
+        if (!verified)
+            goto fail;
 
-            bool verified = false;
-
-            if (output_data_len != data_len)
-                ERROR("Read %zu bytes back out of %s but encoded %zu, encoding failed", output_data_len, output_file, data_len);
-            else if (calculate_checksum(data, data_len) != calculate_checksum(output_data, output_data_len))
-                ERROR("What came back out of %s is not what went in, encoding failed", output_file);
-            else
-                verified = true;
-
-            sodium_memzero(output_data, output_data_len);
-            free(output_data);
-
-            if (!verified)
-                goto fail;
-
-            INFO("Verified %zu bytes read back from %s", data_len, output_file);
-        }
+        INFO("Verified %zu bytes read back from %s", data_len, output_file);
     }
 
-    sodium_memzero(passphrase, sizeof(passphrase));
     free(data);
 
     return EXEC_OK;
 fail:
-    sodium_memzero(passphrase, sizeof(passphrase));
-    free(data);
+    if (data)
+        free(data);
     return EXEC_GENERIC_ERROR;
 }
 

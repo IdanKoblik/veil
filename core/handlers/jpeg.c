@@ -1,5 +1,5 @@
 #include "jpeg.h"
-#include "core/log.h"
+#include "veil/log.h"
 
 int jpeg_coefficient_usable(JCOEF value) {
     return value != 0 && value != 1;

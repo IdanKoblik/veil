@@ -7,53 +7,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Added
-
-- `web/`, the core compiled to WebAssembly behind a single page. `index.html`
-  carries the markup, the styles and the router; `wasm/hh_web.c` exposes encode,
-  decode and analyse over `core/` unchanged, taking paths out of Emscripten's
-  in-memory file system so nothing about the C had to move. The page is ordinary
-  htmx: an extension answers the requests htmx would have sent by running the
-  wasm module and handing the result to `htmx.swap()`, so targets, out of band
-  swaps and settling all behave as they would against a server. Carriers never
-  leave the tab.
-- `HH_BUILD_WEB`, off by default and Emscripten only. `web/build.sh` fetches and
-  builds the wasm dependencies into `web/.deps` and drives it.
-- `web/wasm/smoke.mjs`, a round trip through the built module under node,
-  covering both carrier types plain and encrypted.
-- `callable-web.yml`, which builds the page and runs that round trip. CI calls
-  it beside the three suites rather than behind them, since it shares no
-  toolchain with them. On a push to main, and again once a release is published,
-  the built page is deployed to GitHub Pages.
-
-### Changed
-
-- Both pairs of values tests are asked one block of the carrier at a time, and
-  report the share of blocks that came back level rather than one probability
-  for the whole image. Over a whole carrier at once the statistic saturates:
-  behind a million samples any departure from perfectly level pairs drives the
-  probability to zero, so a carrier stuffed to 95 % read 0.00 % while an
-  untouched one whose histogram happened to be smooth read 100 %, and no two
-  images could be compared. Per block the share tracks how much of the carrier
-  was used -- a half filled one now reads near 50 %. `population` counts blocks
-  and `stat_method_unit` says so.
-
-### Fixed
-
-- The low bit ratio, the chi-square and the histogram of differences are no
-  longer reported for a JPEG carrier. All three read the low bits of decoded
-  samples, which is where a PNG keeps its payload; a JPEG keeps its payload in
-  the quantised coefficients, and by the time those have been through the
-  inverse DCT the change is spread over an 8x8 block and clamped. They measured
-  the decoder rather than the carrier and did not move at all between an empty
-  JPEG and one filled to 95 %, while being printed against a 50 % reference a
-  JPEG cannot reach. They are inapplicable now, and the coefficient test, which
-  does respond, speaks alone.
-
-- `third_party/flag.c` is excluded from the library under Emscripten. It asserts
-  that `size_t` is as wide as `unsigned long long`, which wasm32 is not, and it
-  is the CLI's argument parser -- nothing that runs in a browser has an argv.
-
 ## [1.0.0]
 
 ### Added

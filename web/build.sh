@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 #
-# Builds web/dist/hushhush.{mjs,wasm}, the module index.html loads.
-#
 # Emscripten has to be on PATH: install the emsdk and source its env script, or
 # on a distribution that packages it, put emcc's directory on PATH. Everything
 # else is fetched and built here, into web/.deps, and nothing is installed
@@ -63,20 +61,20 @@ else
     echo "==> libsodium $SODIUM_VERSION (cached)"
 fi
 
-echo "==> hushhush.wasm"
+echo "==> veil.wasm"
 PKG_CONFIG_LIBDIR="$DEPS_DIR/lib/pkgconfig" \
 emcmake cmake -S "$ROOT_DIR" -B "$BUILD_DIR" \
     -DCMAKE_BUILD_TYPE=Release \
-    -DHH_BUILD_WEB=ON \
-    -DHH_BUILD_CLI=OFF \
-    -DHH_BUILD_GUI=OFF \
-    -DHH_BUILD_TESTS=OFF \
+    -DVEIL_BUILD_WEB=ON \
+    -DVEIL_BUILD_CLI=OFF \
+    -DVEIL_BUILD_GUI=OFF \
+    -DVEIL_BUILD_TESTS=OFF \
     -DCMAKE_FIND_ROOT_PATH="$DEPS_DIR"
 
 cmake --build "$BUILD_DIR" -j"$(nproc)"
 
 echo
-echo "built $DIST_DIR/hushhush.mjs and $DIST_DIR/hushhush.wasm"
+echo "built $DIST_DIR/veil.mjs and $DIST_DIR/veil.wasm"
 echo "serve the directory over http, wasm will not load from a file:// url:"
 echo
 echo "    python3 -m http.server -d $WEB_DIR 8000"

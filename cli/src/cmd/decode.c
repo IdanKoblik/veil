@@ -1,10 +1,12 @@
 #include "../args.h"
 #include "../prompt.h"
 #include "command.h"
-#include <core/fs/file.h>
-#include <core/handlers/image.h>
-#include <core/log.h>
 #include <flag.h>
+#include <sodium/utils.h>
+#include <veil/decode.h>
+#include <veil/fs/file.h>
+#include <veil/handlers/image.h>
+#include <veil/log.h>
 
 #include <sodium.h>
 #include <stdlib.h>
@@ -36,7 +38,7 @@ static int exec(int argc, char *argv[]) {
         return EXEC_GENERIC_ERROR;
     }
 
-    char passphrase[PASSPHRASE_MAX];
+    PASSPHRASE(passphrase);
     if (read_passphrase("Passphrase (leave empty if the data is not encrypted): ", passphrase, sizeof(passphrase)) < 0) {
         ERROR("Failed to read the passphrase");
         return EXEC_GENERIC_ERROR;
@@ -47,40 +49,25 @@ static int exec(int argc, char *argv[]) {
 
     DEBUG("Target: %s, Output: %s", target, output_file);
 
-    int decode_status = -1;
-    if (is_image_file(type)) {
-        struct ImageCtx ctx = {
-            .source_file = target,
-            .output_file = output_file,
-
-            .image_type = type,
-            .codec_type = CODEC_UNKNOWN,
-
-            .passphrase = passphrase[0] ? passphrase : NULL,
-        };
-
-        decode_status = decode_image(&ctx, &data, &data_len);
-    }
-
-    sodium_memzero(passphrase, sizeof(passphrase));
-    if (decode_status < 0) {
-        ERROR("Failed to decode data out of the targeted file");
+    if (decode(target, passphrase, &data, &data_len) < 0) {
+        ERROR("Failed to decode the target");
         return EXEC_GENERIC_ERROR;
     }
 
     DEBUG("Writing %zu bytes into %s", data_len, output_file);
-    int write_status = write_to_file_raw_data(output_file, data, data_len);
+    int status = write_to_file_raw_data(output_file, data, data_len);
 
-    sodium_memzero(data, data_len);
-    free(data);
+    if (data) {
+        sodium_memzero(data, data_len);
+        free(data);
+    }
 
-    if (write_status < 0) {
+    if (status < 0) {
         ERROR("Failed to write the decoded data into %s", output_file);
         return EXEC_GENERIC_ERROR;
     }
 
     INFO("Decoded successfully -> %s", output_file);
-
     return EXEC_OK;
 }
 

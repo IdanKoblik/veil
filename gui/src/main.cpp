@@ -1,96 +1,99 @@
-#include <GLFW/glfw3.h>
-#include <core/log.h>
-#include <cstdio>
+#include "app/theme.hpp"
+#include "app/widgets.hpp"
+#include "documents/ImageDocument.hpp"
+#include "raylib.h"
+#include <algorithm>
+#include <cfloat>
 #include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-#include <implot.h>
+#include <rlImGui.h>
+#include <stdexcept>
+#include <string>
+#include <vector>
+#include <veil/log.h>
+#include <portable-file-dialogs.h>
+#include "window.hpp"
+#include "welcome.hpp"
 
-#include "app.hpp"
-#include "theme.hpp"
+static void load_fonts(void) {
+    ImGuiIO &io = ImGui::GetIO();
 
-static void on_glfw_error(int code, const char *description) {
-    fprintf(stderr, "[-] GLFW error %d: %s\n", code, description);
+#if defined(__linux__)
+    const char *fonts[] = {
+        "/usr/share/fonts/TTF/JetBrainsMonoNerdFont-Regular.ttf",
+        "/usr/share/fonts/TTF/DejaVuSansMono.ttf",
+        "/usr/share/fonts/liberation/LiberationMono-Regular.ttf",
+        "/usr/share/fonts/noto/NotoSansMono-Regular.ttf",
+    };
+
+    for (const char *path : fonts)
+        if (FileExists(path) && io.Fonts->AddFontFromFileTTF(path, 20.0f))
+            return;
+#endif
+
+    io.Fonts->AddFontDefault();
 }
 
-static void on_file_dropped(GLFWwindow *window, int count, const char **paths) {
-    hh::App *app = static_cast<hh::App *>(glfwGetWindowUserPointer(window));
+static void run(ImageDocument &document) {
+    while (!WindowShouldClose() && !document.exit) {
+        begin_frame();
 
-    if (app && count > 0)
-        app->open(paths[0]);
+        document.draw_navbar();
+
+        fill_viewport();
+        ImGui::Begin("##workspace", nullptr,
+                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
+                     ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+                     ImGuiWindowFlags_NoBackground
+        );
+
+        document.render();
+
+        ImGui::End();
+
+        end_frame();
+    }
 }
 
-int main(int argc, char **argv) {
-    glfwSetErrorCallback(on_glfw_error);
-    if (!glfwInit()) {
-        ERROR("Failed to initialise GLFW");
-        return 1;
-    }
+int main(void) {
+    SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_MSAA_4X_HINT | FLAG_VSYNC_HINT);
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, WINDOW_TITLE);
+    SetTargetFPS(60);
+    SetExitKey(KEY_NULL);
 
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    rlImGuiSetLoadFontsCallback(load_fonts);
+    rlImGuiBeginInitImGui();
 
-    GLFWwindow *window = glfwCreateWindow(1280, 720, "Hush Hush", nullptr, nullptr);
-    if (!window) {
-        ERROR("Failed to create the window");
-        glfwTerminate();
-        return 1;
-    }
+    ImGui::GetIO().IniFilename = nullptr;
+    theme::apply();
 
-    glfwMakeContextCurrent(window);
-    glfwSwapInterval(1);
+    ImGui::GetStyle().FontSizeBase = 20.0f;
 
-    IMGUI_CHECKVERSION();
-    ImGui::CreateContext();
-    ImPlot::CreateContext();
-    hh::theme::apply();
+    rlImGuiEndInitImGui();
 
-    ImGui_ImplGlfw_InitForOpenGL(window, true);
-    ImGui_ImplOpenGL3_Init("#version 330");
+    std::string problem;
 
-    // Scoped so the texture is released while the GL context is still alive.
-    {
-        hh::App app(window);
-        if (argc > 1)
-            app.open(argv[1]);
+    while (!WindowShouldClose()) {
+        const std::string target = welcome(problem.empty() ? nullptr : problem.c_str());
+        if (target.empty())
+            break;
 
-        glfwSetWindowUserPointer(window, &app);
-        glfwSetDropCallback(window, on_file_dropped);
+        // Scoped so the document's texture is released while the GL context still exists.
+        ImageDocument document;
 
-        while (!glfwWindowShouldClose(window)) {
-            glfwPollEvents();
-
-            ImGui_ImplOpenGL3_NewFrame();
-            ImGui_ImplGlfw_NewFrame();
-            ImGui::NewFrame();
-
-            app.frame();
-
-            ImGui::Render();
-
-            int width = 0, height = 0;
-            glfwGetFramebufferSize(window, &width, &height);
-            glViewport(0, 0, width, height);
-
-            glClearColor(hh::theme::window_bg.x, hh::theme::window_bg.y, hh::theme::window_bg.z, 1.0f);
-            glClear(GL_COLOR_BUFFER_BIT);
-
-            ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-
-            glfwSwapBuffers(window);
+        try {
+            document.open(target);
+            problem.clear();
+        } catch (const std::exception &e) {
+            ERROR("%s", e.what());
+            problem = e.what();
+            continue;
         }
 
-        glfwSetDropCallback(window, nullptr);
-        glfwSetWindowUserPointer(window, nullptr);
+        run(document);
     }
 
-    ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplGlfw_Shutdown();
-    ImPlot::DestroyContext();
-    ImGui::DestroyContext();
+    rlImGuiShutdown();
+    CloseWindow();
 
-    glfwDestroyWindow(window);
-    glfwTerminate();
     return 0;
 }

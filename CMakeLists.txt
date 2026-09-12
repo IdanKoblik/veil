@@ -1,9 +1,9 @@
 cmake_minimum_required(VERSION 3.21)
 
-project(HushHush
+project(Veil
     VERSION 1.0.0
     DESCRIPTION "Steganography toolkit"
-    HOMEPAGE_URL "https://github.com/IdanKoblik/hush-hush"
+    HOMEPAGE_URL "https://github.com/veil"
     LANGUAGES C CXX
 )
 
@@ -17,16 +17,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 include(GNUInstallDirs)
 
-option(HH_BUILD_CLI          "Build the hh command line app"     ON)
-# Off by default: unlike the CLI it needs GLFW and a GL stack present, and it
-# fetches Dear ImGui and ImPlot at configure time.
-option(HH_BUILD_GUI          "Build the hh-gui desktop app"      OFF)
-# Off by default and Emscripten only: it needs emcc and wasm builds of
-# libsodium and libjpeg. web/build.sh sets all three up.
-option(HH_BUILD_WEB          "Build the wasm module behind web/index.html" OFF)
-option(HH_BUILD_TESTS        "Build the test suite"              ${PROJECT_IS_TOP_LEVEL})
-option(HH_WARNINGS_AS_ERRORS "Turn compiler warnings into errors" OFF)
-option(HH_ENABLE_COVERAGE    "Instrument the build for gcov/lcov" OFF)
+option(VEIL_BUILD_CLI          "Build the veil command line app"     ON)
+option(VEIL_BUILD_GUI          "Build the veil-gui desktop app"      OFF)
+option(VEIL_BUILD_WEB          "Build the wasm module" OFF)
+option(VEIL_BUILD_TESTS        "Build the test suite"              ${PROJECT_IS_TOP_LEVEL})
+option(VEIL_ENABLE_COVERAGE    "Instrument the build for gcov/lcov" OFF)
+option(VEIL_WARNINGS_AS_ERRORS "Turn compiler warnings into errors" OFF)
 
 if(PROJECT_IS_TOP_LEVEL)
     if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -45,49 +41,47 @@ if(PROJECT_IS_TOP_LEVEL)
     file(CREATE_LINK
         "${PROJECT_BINARY_DIR}/compile_commands.json"
         "${PROJECT_SOURCE_DIR}/compile_commands.json"
-        SYMBOLIC RESULT hh_compdb_link
+        SYMBOLIC RESULT veil_compdb_link
     )
-    if(NOT hh_compdb_link EQUAL 0)
+    if(NOT veil_compdb_link EQUAL 0)
         message(STATUS "Could not link compile_commands.json into the source tree")
     endif()
 endif()
 
-add_library(hh_options INTERFACE)
-add_library(hushhush::options ALIAS hh_options)
+add_library(veil_options INTERFACE)
+add_library(veil::options ALIAS veil_options)
 
-target_compile_definitions(hh_options INTERFACE _POSIX_C_SOURCE=200809L)
+target_compile_definitions(veil_options INTERFACE _POSIX_C_SOURCE=200809L)
 
-target_compile_options(hh_options INTERFACE
+target_compile_options(veil_options INTERFACE
     $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-Wall;-Wextra>
-    $<$<AND:$<BOOL:${HH_WARNINGS_AS_ERRORS}>,$<C_COMPILER_ID:GNU,Clang,AppleClang>>:-Werror>
-    $<$<AND:$<BOOL:${HH_WARNINGS_AS_ERRORS}>,$<C_COMPILER_ID:MSVC>>:/WX>
+    $<$<AND:$<BOOL:${VEIL_WARNINGS_AS_ERRORS}>,$<C_COMPILER_ID:GNU,Clang,AppleClang>>:-Werror>
+    $<$<AND:$<BOOL:${VEIL_WARNINGS_AS_ERRORS}>,$<C_COMPILER_ID:MSVC>>:/WX>
 )
 
-if(HH_ENABLE_COVERAGE)
+if(VEIL_ENABLE_COVERAGE)
     if(NOT CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-        message(FATAL_ERROR "HH_ENABLE_COVERAGE needs GCC or Clang")
+        message(FATAL_ERROR "VEIL_ENABLE_COVERAGE needs GCC or Clang")
     endif()
-    target_compile_options(hh_options INTERFACE --coverage -O0 -g)
-    target_link_options(hh_options INTERFACE --coverage)
+    target_compile_options(veil_options INTERFACE --coverage -O0 -g)
+    target_link_options(veil_options INTERFACE --coverage)
 endif()
 
-# The shared test harness first: core/tests and cli/tests both link it, so the
-# target has to exist before those directories are added.
-if(HH_BUILD_TESTS)
+if(VEIL_BUILD_TESTS)
     include(CTest)
     add_subdirectory(testing)
 endif()
 
 add_subdirectory(core)
 
-if(HH_BUILD_CLI)
+if(VEIL_BUILD_CLI)
     add_subdirectory(cli)
 endif()
 
-if(HH_BUILD_GUI)
+if(VEIL_BUILD_GUI)
     add_subdirectory(gui)
 endif()
 
-if(HH_BUILD_WEB)
+if(VEIL_BUILD_WEB)
     add_subdirectory(web)
 endif()

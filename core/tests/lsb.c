@@ -5,8 +5,8 @@
 #include <string.h>
 #include <unistd.h>
 
-#include "core/codecs/codec.h"
-#include "core/handlers/image.h"
+#include "veil/codecs/codec.h"
+#include "veil/handlers/image.h"
 
 #define PAYLOAD_LEN 200
 

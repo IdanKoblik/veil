@@ -1,94 +1,122 @@
-file(GLOB_RECURSE HH_CORE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
-file(GLOB_RECURSE HH_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
+file(GLOB_RECURSE VEIL_CORE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
+file(GLOB_RECURSE VEIL_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
-list(FILTER HH_CORE_SOURCES EXCLUDE REGEX "/(tests|build)/")
-list(FILTER HH_CORE_HEADERS EXCLUDE REGEX "/(tests|build)/")
+list(FILTER VEIL_CORE_SOURCES EXCLUDE REGEX "/(tests|build|third_party)/")
+list(FILTER VEIL_CORE_HEADERS EXCLUDE REGEX "/(tests|build|third_party)/")
 
-if(NOT HH_CORE_SOURCES)
+if(NOT VEIL_CORE_SOURCES)
     message(FATAL_ERROR "No .c files under ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
 
 find_package(PkgConfig QUIET)
 
-# Resolves one external library and returns the target to link against.
-function(hh_find_dependency out_var pc_name header lib_name)
-    if(PkgConfig_FOUND)
-        pkg_check_modules(${out_var} QUIET IMPORTED_TARGET GLOBAL ${pc_name})
-        if(${out_var}_FOUND)
-            set(${out_var} PkgConfig::${out_var} PARENT_SCOPE)
-            return()
-        endif()
-    endif()
+get_filename_component(VEIL_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}" DIRECTORY)
 
-    find_path(${out_var}_INCLUDE_DIR NAMES ${header})
-    find_library(${out_var}_LIBRARY NAMES ${lib_name})
+set(VEIL_INCLUDE_DIR "${CMAKE_CURRENT_BINARY_DIR}/include")
+file(MAKE_DIRECTORY "${VEIL_INCLUDE_DIR}")
+file(CREATE_LINK "${CMAKE_CURRENT_SOURCE_DIR}" "${VEIL_INCLUDE_DIR}/veil"
+    SYMBOLIC RESULT veil_include_alias)
 
-    if(NOT ${out_var}_INCLUDE_DIR OR NOT ${out_var}_LIBRARY)
-        message(FATAL_ERROR
-            "Could not find ${pc_name}. Install its development package "
-            "(libsodium-dev / libjpeg-dev on Debian and Ubuntu), or point "
-            "CMAKE_PREFIX_PATH at your own build of it.")
-    endif()
-
-    add_library(${out_var}_imported UNKNOWN IMPORTED)
-    set_target_properties(${out_var}_imported PROPERTIES
-        IMPORTED_LOCATION "${${out_var}_LIBRARY}"
-        INTERFACE_INCLUDE_DIRECTORIES "${${out_var}_INCLUDE_DIR}"
-    )
-    set(${out_var} ${out_var}_imported PARENT_SCOPE)
-endfunction()
-
-hh_find_dependency(HH_SODIUM libsodium sodium.h sodium)
-hh_find_dependency(HH_JPEG   libjpeg  jpeglib.h jpeg)
-
-set(THREADS_PREFER_PTHREAD_FLAG ON)
-find_package(Threads REQUIRED)
-
-file(GLOB_RECURSE HH_VENDOR_SOURCES CONFIGURE_DEPENDS
-    "${PROJECT_SOURCE_DIR}/third_party/*.c"
-)
-
-if(EMSCRIPTEN)
-    list(FILTER HH_VENDOR_SOURCES EXCLUDE REGEX "/flag\\.c$")
+if(NOT veil_include_alias EQUAL 0)
+    message(STATUS "Could not link core/ as veil/ (${veil_include_alias}); copying headers")
+    foreach(header IN LISTS VEIL_CORE_HEADERS)
+        file(RELATIVE_PATH relative "${CMAKE_CURRENT_SOURCE_DIR}" "${header}")
+        configure_file("${header}" "${VEIL_INCLUDE_DIR}/veil/${relative}" COPYONLY)
+    endforeach()
 endif()
 
-add_library(hh_core STATIC
-    ${HH_CORE_SOURCES}
-    ${HH_CORE_HEADERS}
-    ${HH_VENDOR_SOURCES}
-)
-add_library(hushhush::core ALIAS hh_core)
+if(NOT TARGET veil::third_party)
+    set(VEIL_THIRD_PARTY_DIR "" CACHE PATH
+        "Directory holding the vendored third-party sources")
 
-set_target_properties(hh_core PROPERTIES
-    OUTPUT_NAME hushhush
+    if(NOT VEIL_THIRD_PARTY_DIR)
+        foreach(candidate
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party"
+            "${VEIL_ROOT_DIR}/third_party"
+            "${PROJECT_SOURCE_DIR}/third_party")
+            if(EXISTS "${candidate}/CMakeLists.txt")
+                set(VEIL_THIRD_PARTY_DIR "${candidate}")
+                break()
+            endif()
+        endforeach()
+    endif()
+
+    if(NOT VEIL_THIRD_PARTY_DIR)
+        message(FATAL_ERROR
+            "Could not find a third_party directory next to ${CMAKE_CURRENT_SOURCE_DIR}. "
+            "Point VEIL_THIRD_PARTY_DIR at one.")
+    endif()
+
+    message(STATUS "Resolved third_party to ${VEIL_THIRD_PARTY_DIR}")
+    add_subdirectory("${VEIL_THIRD_PARTY_DIR}" "${CMAKE_CURRENT_BINARY_DIR}/third_party")
+endif()
+
+if(NOT TARGET veil::sodium)
+    set(VEIL_SODIUM_ROOT "" CACHE PATH "Location of a libsodium installation")
+
+    add_library(veil_sodium INTERFACE)
+    add_library(veil::sodium ALIAS veil_sodium)
+
+    if(PKG_CONFIG_FOUND AND NOT VEIL_SODIUM_ROOT AND NOT EMSCRIPTEN)
+        pkg_check_modules(VEIL_SODIUM_PC QUIET IMPORTED_TARGET libsodium)
+    endif()
+
+    if(TARGET PkgConfig::VEIL_SODIUM_PC)
+        message(STATUS "Resolved libsodium ${VEIL_SODIUM_PC_VERSION} via pkg-config")
+        target_link_libraries(veil_sodium INTERFACE PkgConfig::VEIL_SODIUM_PC)
+    else()
+        find_path(VEIL_SODIUM_INCLUDE_DIR sodium.h
+            HINTS "${VEIL_SODIUM_ROOT}" PATH_SUFFIXES include)
+        find_library(VEIL_SODIUM_LIBRARY NAMES sodium libsodium
+            HINTS "${VEIL_SODIUM_ROOT}" PATH_SUFFIXES lib)
+
+        if(NOT VEIL_SODIUM_INCLUDE_DIR OR NOT VEIL_SODIUM_LIBRARY)
+            message(FATAL_ERROR
+                "Could not find libsodium. Install it (Arch: libsodium, Debian: "
+                "libsodium-dev, macOS: brew install libsodium) or point "
+                "VEIL_SODIUM_ROOT at an installation.")
+        endif()
+
+        message(STATUS "Resolved libsodium to ${VEIL_SODIUM_LIBRARY}")
+        target_include_directories(veil_sodium SYSTEM INTERFACE "${VEIL_SODIUM_INCLUDE_DIR}")
+        target_link_libraries(veil_sodium INTERFACE "${VEIL_SODIUM_LIBRARY}")
+    endif()
+endif()
+
+if(NOT TARGET veil::jpeg)
+    find_package(JPEG QUIET)
+
+    if(NOT JPEG_FOUND)
+        message(FATAL_ERROR
+            "Could not find libjpeg. Install it (Arch: libjpeg-turbo, Debian: "
+            "libjpeg-dev, macOS: brew install jpeg-turbo) or point "
+            "JPEG_ROOT at an installation.")
+    endif()
+
+    message(STATUS "Resolved libjpeg ${JPEG_VERSION} to ${JPEG_LIBRARIES}")
+    add_library(veil_jpeg INTERFACE)
+    add_library(veil::jpeg ALIAS veil_jpeg)
+    target_link_libraries(veil_jpeg INTERFACE JPEG::JPEG)
+endif()
+
+add_library(veil_core STATIC
+    ${VEIL_CORE_SOURCES}
+    ${VEIL_CORE_HEADERS}
+)
+add_library(veil::core ALIAS veil_core)
+
+set_target_properties(veil_core PROPERTIES
+    OUTPUT_NAME veil
     POSITION_INDEPENDENT_CODE ON
 )
 
-# The parent of this directory is on the include path, so headers are reached
-# as <core/...> both from inside the library and from its consumers.
-target_include_directories(hh_core
+target_include_directories(veil_core
     PUBLIC
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}>"
-    SYSTEM PUBLIC
-        "$<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/third_party>"
+        "$<BUILD_INTERFACE:${VEIL_INCLUDE_DIR}>"
 )
 
-# libsodium and libjpeg are PUBLIC: their headers are part of what core hands
-# to its consumers, so the CLI gets the include paths without restating them.
-target_link_libraries(hh_core
-    PUBLIC
-        hushhush::options
-        Threads::Threads
-        ${HH_SODIUM}
-        ${HH_JPEG}
-    PRIVATE
-        $<$<NOT:$<PLATFORM_ID:Windows>>:m>
-)
+target_link_libraries(veil_core PUBLIC veil::options veil::third_party veil::sodium veil::jpeg)
 
-if(HH_VENDOR_SOURCES AND CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
-    set_source_files_properties(${HH_VENDOR_SOURCES} PROPERTIES COMPILE_OPTIONS "-w")
-endif()
-
-if(HH_BUILD_TESTS)
+if(VEIL_BUILD_TESTS)
     add_subdirectory(tests)
 endif()

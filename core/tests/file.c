@@ -1,6 +1,6 @@
 #include "greatest.h"
 
-#include "core/fs/file.h"
+#include "veil/fs/file.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -22,7 +22,6 @@ TEST get_file_data_reads_file_contents(void) {
     ASSERT_EQ(0, result);
     ASSERT(data != NULL);
     ASSERT_EQ(strlen(content), data_len);
-    /* read_file_raw_data returns raw bytes, not a C string: no NUL to strcmp against. */
     ASSERT_MEM_EQ(content, data, data_len);
 
     free(data);
@@ -58,10 +57,6 @@ TEST get_file_data_reads_empty_file(void) {
     PASS();
 }
 
-/*
- * An empty file is a successful read of zero bytes, never a failure -- the
- * buffer must come back non-NULL even though the size is 0.
- */
 TEST get_file_data_returns_a_buffer_for_an_empty_file(void) {
     char path[] = "/tmp/test_zero_file_XXXXXX";
     int fd = mkstemp(path);

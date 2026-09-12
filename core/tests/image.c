@@ -1,7 +1,7 @@
-#include "core/handlers/image.h"
-#include "core/fs/file.h"
 #include "greatest.h"
 #include "helpers.h"
+#include "veil/handlers/image.h"
+#include "veil/fs/file.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>

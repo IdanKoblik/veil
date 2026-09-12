@@ -4,6 +4,7 @@ build/*
 coverage/*
 hh
 compile_commands.json
+CMakeUserPresets.json
 
 # Python
 .venv/*
@@ -47,6 +48,7 @@ compile_commands.json
 *.hex
 
 # Debug files
+vgcore.*
 *.dSYM/
 *.su
 *.idb
