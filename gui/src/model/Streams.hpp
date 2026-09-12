@@ -3,7 +3,7 @@
 #include <veil/analysis/stream.h>
 
 struct Streams {
-    struct StreamSet set {};
+    struct StreamSet set{};
 
     Streams() = default;
     Streams(const Streams &) = delete;

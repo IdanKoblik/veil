@@ -1,11 +1,11 @@
 #pragma once
 
 class AboutPopout {
-public:
+  public:
     void open(void);
 
     void draw(void);
 
-private:
+  private:
     bool pending = false;
 };

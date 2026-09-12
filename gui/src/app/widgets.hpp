@@ -49,4 +49,4 @@ inline bool splitter(const char *id, float *width, float lo, float hi, float hei
     return held;
 };
 
-} // ui
+} // namespace ui

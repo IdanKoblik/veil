@@ -32,7 +32,7 @@ TEST get_file_data_reads_file_contents(void) {
 TEST get_file_data_returns_neg_for_nonexistent(void) {
     unsigned char *data = NULL;
     size_t data_len = 0;
-    int result = read_file_raw_data("/tmp/nonexistent_file_hush_hush", &data, &data_len);
+    int result = read_file_raw_data("/tmp/nonexistent_file_veil", &data, &data_len);
 
     ASSERT(result < 0);
     PASS();
@@ -76,7 +76,7 @@ TEST get_file_data_returns_a_buffer_for_an_empty_file(void) {
 }
 
 TEST get_file_type_returns_not_found_for_nonexistent(void) {
-    enum FileType type = get_file_type("/tmp/nonexistent_file_hush_hush");
+    enum FileType type = get_file_type("/tmp/nonexistent_file_veil");
     ASSERT(type == TYPE_UNKNOWN || type == TYPE_NOT_FOUND);
     PASS();
 }

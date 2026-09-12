@@ -1,0 +1,38 @@
+name: Request review
+
+on:
+  pull_request_target:
+    types: [opened, reopened, ready_for_review]
+
+permissions:
+  pull-requests: write
+
+concurrency:
+  group: request-review-${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  REVIEWER: 'IdanKoblik'
+
+jobs:
+  request-review:
+    name: Request review
+    runs-on: ubuntu-latest
+    # Drafts get a reviewer once they're marked ready, not before.
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Request review
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: |
+          # GitHub rejects a review request naming the pull request's own
+          # author, so IdanKoblik's own pull requests are left alone.
+          if [ "$PR_AUTHOR" = "$REVIEWER" ]; then
+            echo "::notice::$PR_AUTHOR authored this pull request — no review requested."
+            exit 0
+          fi
+
+          gh pr edit "$PR_URL" --add-reviewer "$REVIEWER"
+          echo "::notice::Requested review from $REVIEWER."

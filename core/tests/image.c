@@ -1,6 +1,6 @@
+#include "veil/handlers/image.h"
 #include "greatest.h"
 #include "helpers.h"
-#include "veil/handlers/image.h"
 #include "veil/fs/file.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,7 +35,7 @@ TEST detect_image_returns_unknown_for_non_image(void) {
 }
 
 TEST detect_image_returns_not_found_for_nonexistent(void) {
-    enum FileType type = detect_image_type("/tmp/nonexistent_file_hush_hush");
+    enum FileType type = detect_image_type("/tmp/nonexistent_file_veil");
     ASSERT(type == TYPE_UNKNOWN || type == TYPE_NOT_FOUND);
     PASS();
 }

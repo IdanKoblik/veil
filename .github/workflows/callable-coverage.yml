@@ -1,0 +1,67 @@
+name: Coverage
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  APT_PACKAGES: >-
+    build-essential
+    cmake
+    pkg-config
+    libsodium-dev
+    libjpeg-dev
+    libx11-dev
+    libgl1-mesa-dev
+    libxrandr-dev
+    libxinerama-dev
+    libxcursor-dev
+    libxi-dev
+
+jobs:
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends $APT_PACKAGES lcov
+
+      # devtools/coverage.sh reads the .gcda files out of ./coverage, so that is
+      # where the instrumented tree has to be built.
+      - name: Configure
+        run: |
+          cmake -S . -B coverage \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DVEIL_ENABLE_COVERAGE=ON \
+            -DVEIL_BUILD_GUI=ON
+
+      - name: Build
+        run: cmake --build coverage -j"$(nproc)"
+
+      - name: Test
+        run: ctest --test-dir coverage --output-on-failure
+
+      - name: Report
+        run: |
+          ./devtools/coverage.sh | tee coverage-summary.txt
+          {
+            echo '### Coverage'
+            echo
+            echo '```'
+            sed -n '/^Overall coverage rate:/,$p' coverage-summary.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: coverage/html
+          retention-days: 14
+          if-no-files-found: error

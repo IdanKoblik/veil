@@ -6,7 +6,7 @@
 #include <veil/analysis/stream.h>
 
 class TextPopout {
-public:
+  public:
     void open(void);
     void draw(const struct StreamSet &set);
 
@@ -14,7 +14,7 @@ public:
         return this->shown;
     };
 
-private:
+  private:
     bool pending = false;
     bool shown = false;
     bool find_open = false;

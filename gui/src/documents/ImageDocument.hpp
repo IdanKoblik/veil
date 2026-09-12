@@ -9,17 +9,17 @@
 #include <string>
 
 class ImageDocument : public FileDocument {
-public:
+  public:
     void render(void) override;
     void open(const std::string &target) override;
     std::string summary(void) override;
 
-protected:
+  protected:
     void handle_shortcuts(void) override;
     void edit_menu(void) override;
     void extra_menus(void) override;
 
-private:
+  private:
     bool show_preview = true;
 
     Pixels pixels;

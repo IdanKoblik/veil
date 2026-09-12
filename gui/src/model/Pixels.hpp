@@ -3,7 +3,7 @@
 #include <veil/analysis/image/inspect.h>
 
 struct Pixels {
-    struct PixelBuffer buffer {};
+    struct PixelBuffer buffer{};
 
     Pixels() = default;
     Pixels(const Pixels &) = delete;

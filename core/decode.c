@@ -4,7 +4,6 @@
 #include "handlers/image.h"
 #include "log.h"
 
-
 int decode(const char *target, const char passphrase[PASSPHRASE_MAX], unsigned char **data, size_t *data_len) {
     if (!target) {
         ERROR("Target is absent");
@@ -18,7 +17,7 @@ int decode(const char *target, const char passphrase[PASSPHRASE_MAX], unsigned c
     }
 
     int decode_status = -1;
-     if (is_image_file(type)) {
+    if (is_image_file(type)) {
         struct ImageCtx ctx = {
             .source_file = target,
             .output_file = NULL,

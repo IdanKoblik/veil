@@ -9,7 +9,7 @@
 #include <string.h>
 
 struct ContainerHeader {
-    unsigned char magic[HUSH_MAGIC_LEN];
+    unsigned char magic[VEIL_MAGIC_LEN];
     unsigned char version;
     unsigned char flags;
     unsigned char codec;
@@ -142,13 +142,13 @@ static int derive_keys(const char *passphrase, const unsigned char *salt, unsign
 static size_t header_pack_preamble(const struct ContainerHeader *header, unsigned char *out) {
     size_t off = 0;
 
-    memcpy(out + off, header->magic, HUSH_MAGIC_LEN);
-    off += HUSH_MAGIC_LEN;
+    memcpy(out + off, header->magic, VEIL_MAGIC_LEN);
+    off += VEIL_MAGIC_LEN;
 
     out[off++] = header->version;
     out[off++] = header->flags;
 
-    if (!(header->flags & HUSH_FLAG_ENCRYPTED))
+    if (!(header->flags & VEIL_FLAG_ENCRYPTED))
         return off;
 
     memcpy(out + off, header->salt, sizeof(header->salt));
@@ -161,14 +161,14 @@ static size_t header_pack_preamble(const struct ContainerHeader *header, unsigne
 }
 
 static void header_pack_body(const struct ContainerHeader *header, unsigned char *out) {
-    memset(out, 0, HUSH_HEADER_BODY_LEN);
+    memset(out, 0, VEIL_HEADER_BODY_LEN);
 
-    out[HUSH_BODY_CODEC_OFF] = header->codec;
+    out[VEIL_BODY_CODEC_OFF] = header->codec;
 
     for (size_t i = 0; i < 4; i++)
-        out[HUSH_BODY_LEN_OFF + i] = (unsigned char)((header->payload_len >> (i * 8)) & 0xFF);
+        out[VEIL_BODY_LEN_OFF + i] = (unsigned char)((header->payload_len >> (i * 8)) & 0xFF);
 
-    memcpy(out + HUSH_BODY_NONCE_OFF, header->payload_nonce, sizeof(header->payload_nonce));
+    memcpy(out + VEIL_BODY_NONCE_OFF, header->payload_nonce, sizeof(header->payload_nonce));
 }
 
 /*
@@ -177,17 +177,17 @@ static void header_pack_body(const struct ContainerHeader *header, unsigned char
  * flags say they are there, see header_unpack_keys.
  */
 static int header_unpack_preamble(struct ContainerHeader *header, const unsigned char *in) {
-    memcpy(header->magic, in, HUSH_MAGIC_LEN);
-    header->version = in[HUSH_MAGIC_LEN];
-    header->flags = in[HUSH_MAGIC_LEN + 1];
+    memcpy(header->magic, in, VEIL_MAGIC_LEN);
+    header->version = in[VEIL_MAGIC_LEN];
+    header->flags = in[VEIL_MAGIC_LEN + 1];
 
-    if (memcmp(header->magic, HUSH_MAGIC, HUSH_MAGIC_LEN) != 0) {
-        ERROR("No %s container was found in the image", HUSH_MAGIC);
+    if (memcmp(header->magic, VEIL_MAGIC, VEIL_MAGIC_LEN) != 0) {
+        ERROR("No %s container was found in the image", VEIL_MAGIC);
         return -1;
     }
 
-    if (header->version != HUSH_VERSION) {
-        ERROR("Container version %u is not supported, this build speaks version %u", header->version, HUSH_VERSION);
+    if (header->version != VEIL_VERSION) {
+        ERROR("Container version %u is not supported, this build speaks version %u", header->version, VEIL_VERSION);
         return -1;
     }
 
@@ -195,7 +195,7 @@ static int header_unpack_preamble(struct ContainerHeader *header, const unsigned
 }
 
 static void header_unpack_keys(struct ContainerHeader *header, const unsigned char *in) {
-    size_t off = HUSH_PREAMBLE_PLAIN_LEN;
+    size_t off = VEIL_PREAMBLE_PLAIN_LEN;
 
     memcpy(header->salt, in + off, sizeof(header->salt));
     off += sizeof(header->salt);
@@ -204,39 +204,39 @@ static void header_unpack_keys(struct ContainerHeader *header, const unsigned ch
 }
 
 static void header_unpack_body(struct ContainerHeader *header, const unsigned char *in) {
-    header->codec = in[HUSH_BODY_CODEC_OFF];
+    header->codec = in[VEIL_BODY_CODEC_OFF];
 
     header->payload_len = 0;
     for (size_t i = 0; i < 4; i++)
-        header->payload_len |= (uint32_t)in[HUSH_BODY_LEN_OFF + i] << (i * 8);
+        header->payload_len |= (uint32_t)in[VEIL_BODY_LEN_OFF + i] << (i * 8);
 
-    memcpy(header->payload_nonce, in + HUSH_BODY_NONCE_OFF, sizeof(header->payload_nonce));
+    memcpy(header->payload_nonce, in + VEIL_BODY_NONCE_OFF, sizeof(header->payload_nonce));
 }
 
 static int embed_plain(const Carrier *carrier, enum CodecType codec, const unsigned char *data, size_t data_len) {
-    size_t needed = HUSH_PREAMBLE_PLAIN_LEN + data_len + HUSH_END_MARKER_LEN;
+    size_t needed = VEIL_PREAMBLE_PLAIN_LEN + data_len + VEIL_END_MARKER_LEN;
     if (carrier->slots / 8 < needed) {
         ERROR("Image size is not big enough to embed the targeted data into it");
         return -1;
     }
 
-    struct ContainerHeader header = {.version = HUSH_VERSION, .flags = 0, .codec = (unsigned char)codec};
-    memcpy(header.magic, HUSH_MAGIC, HUSH_MAGIC_LEN);
+    struct ContainerHeader header = {.version = VEIL_VERSION, .flags = 0, .codec = (unsigned char)codec};
+    memcpy(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN);
 
-    unsigned char preamble[HUSH_PREAMBLE_PLAIN_LEN];
+    unsigned char preamble[VEIL_PREAMBLE_PLAIN_LEN];
     size_t preamble_len = header_pack_preamble(&header, preamble);
 
-    DEBUG("Embedding %zu bytes sequentially, terminated by %s", data_len, HUSH_END_MARKER);
+    DEBUG("Embedding %zu bytes sequentially, terminated by %s", data_len, VEIL_END_MARKER);
     embed_sequential(carrier, preamble, preamble_len, 0);
     embed_sequential(carrier, data, data_len, preamble_len * 8);
-    embed_sequential(carrier, (const unsigned char *)HUSH_END_MARKER, HUSH_END_MARKER_LEN, (preamble_len + data_len) * 8);
+    embed_sequential(carrier, (const unsigned char *)VEIL_END_MARKER, VEIL_END_MARKER_LEN, (preamble_len + data_len) * 8);
 
     return 0;
 }
 
 static int embed_encrypted(const Carrier *carrier, enum CodecType codec, const char *passphrase, const unsigned char *data, size_t data_len) {
     size_t payload_len = data_len + crypto_secretbox_MACBYTES;
-    size_t needed = HUSH_PREAMBLE_ENC_LEN + HUSH_HEADER_SEALED_LEN + payload_len;
+    size_t needed = VEIL_PREAMBLE_ENC_LEN + VEIL_HEADER_SEALED_LEN + payload_len;
 
     if (carrier->slots / 8 < needed) {
         ERROR("Image size is not big enough to embed the encrypted data into it");
@@ -249,13 +249,13 @@ static int embed_encrypted(const Carrier *carrier, enum CodecType codec, const c
     }
 
     struct ContainerHeader header = {
-        .version = HUSH_VERSION,
-        .flags = HUSH_FLAG_ENCRYPTED,
+        .version = VEIL_VERSION,
+        .flags = VEIL_FLAG_ENCRYPTED,
         .codec = (unsigned char)codec,
         .payload_len = (uint32_t)payload_len,
     };
 
-    memcpy(header.magic, HUSH_MAGIC, HUSH_MAGIC_LEN);
+    memcpy(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN);
     randombytes_buf(header.salt, sizeof(header.salt));
     randombytes_buf(header.header_nonce, sizeof(header.header_nonce));
     randombytes_buf(header.payload_nonce, sizeof(header.payload_nonce));
@@ -265,8 +265,8 @@ static int embed_encrypted(const Carrier *carrier, enum CodecType codec, const c
     if (derive_keys(passphrase, header.salt, box_key, prng_key) < 0)
         return -1;
 
-    unsigned char body[HUSH_HEADER_BODY_LEN];
-    unsigned char sealed_header[HUSH_HEADER_SEALED_LEN];
+    unsigned char body[VEIL_HEADER_BODY_LEN];
+    unsigned char sealed_header[VEIL_HEADER_SEALED_LEN];
 
     header_pack_body(&header, body);
     crypto_secretbox_easy(sealed_header, body, sizeof(body), header.header_nonce, box_key);
@@ -282,9 +282,9 @@ static int embed_encrypted(const Carrier *carrier, enum CodecType codec, const c
     }
     sodium_memzero(box_key, sizeof(box_key));
 
-    unsigned char preamble[HUSH_PREAMBLE_ENC_LEN];
+    unsigned char preamble[VEIL_PREAMBLE_ENC_LEN];
     size_t preamble_len = header_pack_preamble(&header, preamble);
-    size_t payload_start = (preamble_len + HUSH_HEADER_SEALED_LEN) * 8;
+    size_t payload_start = (preamble_len + VEIL_HEADER_SEALED_LEN) * 8;
 
     DEBUG("Embedding a %zu byte encrypted header at the start of the image", preamble_len + sizeof(sealed_header));
     embed_sequential(carrier, preamble, preamble_len, 0);
@@ -300,10 +300,10 @@ static int embed_encrypted(const Carrier *carrier, enum CodecType codec, const c
 }
 
 static int extract_plain(const Carrier *carrier, unsigned char **out, size_t *out_len) {
-    size_t start_slot = HUSH_PREAMBLE_PLAIN_LEN * 8;
-    size_t max_len = carrier->slots / 8 - HUSH_PREAMBLE_PLAIN_LEN;
+    size_t start_slot = VEIL_PREAMBLE_PLAIN_LEN * 8;
+    size_t max_len = carrier->slots / 8 - VEIL_PREAMBLE_PLAIN_LEN;
 
-    if (max_len <= HUSH_END_MARKER_LEN) {
+    if (max_len <= VEIL_END_MARKER_LEN) {
         ERROR("Image is too small to hold a terminated payload");
         return -1;
     }
@@ -314,16 +314,16 @@ static int extract_plain(const Carrier *carrier, unsigned char **out, size_t *ou
         return -1;
     }
 
-    DEBUG("Scanning up to %zu sequential bytes for %s", max_len, HUSH_END_MARKER);
+    DEBUG("Scanning up to %zu sequential bytes for %s", max_len, VEIL_END_MARKER);
     for (size_t len = 1; len <= max_len; len++) {
         extract_sequential(carrier, data + len - 1, 1, start_slot + (len - 1) * 8);
-        if (len <= HUSH_END_MARKER_LEN)
+        if (len <= VEIL_END_MARKER_LEN)
             continue;
 
-        if (memcmp(data + len - HUSH_END_MARKER_LEN, HUSH_END_MARKER, HUSH_END_MARKER_LEN) != 0)
+        if (memcmp(data + len - VEIL_END_MARKER_LEN, VEIL_END_MARKER, VEIL_END_MARKER_LEN) != 0)
             continue;
 
-        size_t data_len = len - HUSH_END_MARKER_LEN;
+        size_t data_len = len - VEIL_END_MARKER_LEN;
         unsigned char *shrunk = realloc(data, data_len);
 
         *out = shrunk ? shrunk : data;
@@ -332,7 +332,7 @@ static int extract_plain(const Carrier *carrier, unsigned char **out, size_t *ou
         return 0;
     }
 
-    ERROR("Reached the end of the image without finding the %s marker", HUSH_END_MARKER);
+    ERROR("Reached the end of the image without finding the %s marker", VEIL_END_MARKER);
     free(data);
 
     return -1;
@@ -344,8 +344,8 @@ static int extract_encrypted(const Carrier *carrier, const char *passphrase, str
         return -1;
     }
 
-    size_t header_start = HUSH_PREAMBLE_ENC_LEN * 8;
-    size_t payload_start = header_start + HUSH_HEADER_SEALED_LEN * 8;
+    size_t header_start = VEIL_PREAMBLE_ENC_LEN * 8;
+    size_t payload_start = header_start + VEIL_HEADER_SEALED_LEN * 8;
 
     if (carrier->slots <= payload_start) {
         ERROR("Image is too small to hold the encrypted header");
@@ -357,8 +357,8 @@ static int extract_encrypted(const Carrier *carrier, const char *passphrase, str
     if (derive_keys(passphrase, header->salt, box_key, prng_key) < 0)
         return -1;
 
-    unsigned char sealed_header[HUSH_HEADER_SEALED_LEN];
-    unsigned char body[HUSH_HEADER_BODY_LEN];
+    unsigned char sealed_header[VEIL_HEADER_SEALED_LEN];
+    unsigned char body[VEIL_HEADER_BODY_LEN];
 
     size_t payload_len = 0;
     unsigned char *payload = NULL;
@@ -430,29 +430,29 @@ int container_embed(const Carrier *carrier, enum CodecType codec, const char *pa
 
 int container_extract(const Carrier *carrier, const char *passphrase, enum CodecType *codec, unsigned char **data, size_t *data_len) {
     struct ContainerHeader header = {0};
-    unsigned char preamble[HUSH_PREAMBLE_ENC_LEN];
+    unsigned char preamble[VEIL_PREAMBLE_ENC_LEN];
 
-    if (carrier->slots / 8 < HUSH_PREAMBLE_PLAIN_LEN) {
-        ERROR("Image is too small to hold a %s container", HUSH_MAGIC);
+    if (carrier->slots / 8 < VEIL_PREAMBLE_PLAIN_LEN) {
+        ERROR("Image is too small to hold a %s container", VEIL_MAGIC);
         return -1;
     }
 
-    extract_sequential(carrier, preamble, HUSH_PREAMBLE_PLAIN_LEN, 0);
+    extract_sequential(carrier, preamble, VEIL_PREAMBLE_PLAIN_LEN, 0);
     if (header_unpack_preamble(&header, preamble) < 0)
         return -1;
 
-    int encrypted = (header.flags & HUSH_FLAG_ENCRYPTED) != 0;
+    int encrypted = (header.flags & VEIL_FLAG_ENCRYPTED) != 0;
     INFO("Container: version %u, encryption %s", header.version, encrypted ? "on" : "off");
 
     if (!encrypted)
         return extract_plain(carrier, data, data_len);
 
-    if (carrier->slots / 8 < HUSH_PREAMBLE_ENC_LEN) {
+    if (carrier->slots / 8 < VEIL_PREAMBLE_ENC_LEN) {
         ERROR("Image is too small to hold the encrypted preamble");
         return -1;
     }
 
-    extract_sequential(carrier, preamble + HUSH_PREAMBLE_PLAIN_LEN, HUSH_PREAMBLE_ENC_LEN - HUSH_PREAMBLE_PLAIN_LEN, HUSH_PREAMBLE_PLAIN_LEN * 8);
+    extract_sequential(carrier, preamble + VEIL_PREAMBLE_PLAIN_LEN, VEIL_PREAMBLE_ENC_LEN - VEIL_PREAMBLE_PLAIN_LEN, VEIL_PREAMBLE_PLAIN_LEN * 8);
     header_unpack_keys(&header, preamble);
 
     if (extract_encrypted(carrier, passphrase, &header, data, data_len) < 0)

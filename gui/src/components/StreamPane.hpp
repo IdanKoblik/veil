@@ -7,9 +7,8 @@
 #include <veil/analysis/stream.h>
 
 class StreamPane {
-public:
+  public:
     void draw(const struct StreamSet &set, ViewState &state);
-
 
     bool has_selection(void) const {
         return this->hex.has_selection();
@@ -23,8 +22,7 @@ public:
         return this->hex.selection_hex(stream);
     };
 
-private:
+  private:
     HexView hex;
     Find find;
-
 };

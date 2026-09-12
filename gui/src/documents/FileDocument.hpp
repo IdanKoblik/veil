@@ -5,14 +5,15 @@
 #include <veil/fs/file.h>
 
 class FileDocument : public Document {
-public:
+  public:
     std::string file_name_of(const std::string &path) {
         const size_t slash = path.find_last_of('/');
         return slash == std::string::npos ? path : path.substr(slash + 1);
     }
 
     virtual void open(const std::string &path) = 0;
-protected: 
+
+  protected:
     std::string path;
     std::string name;
     enum FileType file_type;

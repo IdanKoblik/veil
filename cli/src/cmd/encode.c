@@ -1,15 +1,15 @@
 #include "../args.h"
 #include "../prompt.h"
 #include "command.h"
-#include <veil/fs/checksum.h>
-#include <veil/fs/file.h>
-#include <veil/handlers/image.h>
-#include <veil/log.h>
-#include <veil/encode.h>
 #include <flag.h>
 #include <sodium.h>
 #include <stdlib.h>
 #include <string.h>
+#include <veil/encode.h>
+#include <veil/fs/checksum.h>
+#include <veil/fs/file.h>
+#include <veil/handlers/image.h>
+#include <veil/log.h>
 
 static int exec(int argc, char *argv[]) {
     const char *target = shift_args(&argc, &argv);

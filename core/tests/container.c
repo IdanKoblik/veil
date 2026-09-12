@@ -87,8 +87,8 @@ TEST container_leaves_its_magic_in_the_clear(void) {
 
     ASSERT_EQ(0, container_embed(&carrier, CODEC_DCT, "a passphrase", payload, PAYLOAD_LEN));
 
-    for (size_t i = 0; i < HUSH_MAGIC_LEN * 8; i++) {
-        const unsigned char want = (unsigned char)((HUSH_MAGIC[i / 8] >> (i % 8)) & 1);
+    for (size_t i = 0; i < VEIL_MAGIC_LEN * 8; i++) {
+        const unsigned char want = (unsigned char)((VEIL_MAGIC[i / 8] >> (i % 8)) & 1);
 
         ASSERT_EQ(want, carrier.read(&carrier, i));
     }

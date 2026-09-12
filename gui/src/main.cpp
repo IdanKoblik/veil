@@ -2,17 +2,17 @@
 #include "app/widgets.hpp"
 #include "documents/ImageDocument.hpp"
 #include "raylib.h"
+#include "welcome.hpp"
+#include "window.hpp"
 #include <algorithm>
 #include <cfloat>
 #include <imgui.h>
+#include <portable-file-dialogs.h>
 #include <rlImGui.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
 #include <veil/log.h>
-#include <portable-file-dialogs.h>
-#include "window.hpp"
-#include "welcome.hpp"
 
 static void load_fonts(void) {
     ImGuiIO &io = ImGui::GetIO();
@@ -40,11 +40,7 @@ static void run(ImageDocument &document) {
         document.draw_navbar();
 
         fill_viewport();
-        ImGui::Begin("##workspace", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
-                     ImGuiWindowFlags_NoBackground
-        );
+        ImGui::Begin("##workspace", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus | ImGuiWindowFlags_NoBackground);
 
         document.render();
 

@@ -117,8 +117,8 @@ TEST lsb_stream_opens_a_plain_payload(void) {
 
     struct Stream stream;
     ASSERT_EQ(0, stream_load(output, STREAM_LSB, &stream));
-    ASSERT(stream.len >= HUSH_MAGIC_LEN);
-    ASSERT_MEM_EQ(HUSH_MAGIC, stream.bytes, HUSH_MAGIC_LEN);
+    ASSERT(stream.len >= VEIL_MAGIC_LEN);
+    ASSERT_MEM_EQ(VEIL_MAGIC, stream.bytes, VEIL_MAGIC_LEN);
 
     stream_free(&stream);
     unlink(source);
@@ -140,8 +140,8 @@ TEST dct_stream_opens_a_plain_payload(void) {
     struct Stream stream;
     ASSERT_EQ(0, stream_load(output, STREAM_DCT, &stream));
     ASSERT(stream.slots > 0);
-    ASSERT(stream.len >= HUSH_MAGIC_LEN);
-    ASSERT_MEM_EQ(HUSH_MAGIC, stream.bytes, HUSH_MAGIC_LEN);
+    ASSERT(stream.len >= VEIL_MAGIC_LEN);
+    ASSERT_MEM_EQ(VEIL_MAGIC, stream.bytes, VEIL_MAGIC_LEN);
 
     stream_free(&stream);
     unlink(source);

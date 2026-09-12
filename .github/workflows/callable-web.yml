@@ -1,0 +1,99 @@
+name: Web
+
+# Builds web/index.html and the wasm module behind it, and optionally hands the
+# result to Pages. Split from the test suites because it shares nothing with
+# them: a different toolchain, a different libc, and dependencies that have to
+# be built for wasm32 rather than installed from apt.
+on:
+  workflow_call:
+    inputs:
+      upload:
+        description: 'Upload the built site as a Pages artifact. Off for pull requests, which only need to know it still builds.'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A called workflow cannot see the caller's env, so this is repeated per file.
+env:
+  # Pinned rather than 'latest': a toolchain that changes under the build is a
+  # failure nobody asked for, and the SDK is cached by this exact version.
+  EMSDK_VERSION: '6.0.9'
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ~400 MB of toolchain. Restoring it is most of this job's runtime.
+      - name: Cache the Emscripten SDK
+        uses: actions/cache@v4
+        with:
+          path: ~/emsdk
+          key: emsdk-${{ env.EMSDK_VERSION }}
+
+      - name: Install Emscripten
+        run: |
+          set -euo pipefail
+
+          if [ ! -x ~/emsdk/emsdk ]; then
+            git clone --depth 1 https://github.com/emscripten-core/emsdk.git ~/emsdk
+          fi
+
+          ~/emsdk/emsdk install "$EMSDK_VERSION"
+          ~/emsdk/emsdk activate "$EMSDK_VERSION"
+
+          # Every later step gets its own shell, so emcc goes on PATH through
+          # the environment files rather than by sourcing emsdk_env.sh again.
+          source ~/emsdk/emsdk_env.sh
+          echo "$EMSDK" >> "$GITHUB_PATH"
+          echo "$EMSDK/upstream/emscripten" >> "$GITHUB_PATH"
+          echo "EMSDK=$EMSDK" >> "$GITHUB_ENV"
+          echo "EM_CONFIG=$EMSDK/.emscripten" >> "$GITHUB_ENV"
+
+      # libsodium is not an Emscripten port and has to be configured and built
+      # from source, which is the slowest part of a cold build. build.sh reuses
+      # whatever is already in .deps, so a hit skips it entirely.
+      - name: Cache the wasm dependencies
+        uses: actions/cache@v4
+        with:
+          # The installed artefacts only. .deps/src is the extracted libsodium
+          # tree, which build.sh needs to produce these and never again.
+          path: |
+            web/.deps/lib
+            web/.deps/include
+          key: wasm-deps-${{ env.EMSDK_VERSION }}-${{ hashFiles('web/build.sh') }}
+
+      - name: Build
+        run: ./web/build.sh
+
+      # The same round trip the CLI suite runs against the committed assets,
+      # through the wasm module instead: both carrier types, plain and
+      # encrypted, checked byte for byte. Nothing else here would notice a
+      # module that loads cleanly and returns the wrong bytes.
+      - name: Round trip
+        run: node web/wasm/smoke.mjs
+
+      # Only what the page needs at runtime. The C, the build script and the
+      # README stay in the repository.
+      - name: Assemble the site
+        if: inputs.upload
+        run: |
+          set -euo pipefail
+
+          mkdir -p site
+          cp web/index.html web/app.js web/app.css site/
+          cp -r web/dist site/dist
+
+          du -sh site
+          find site -type f -printf '%P\t%s bytes\n' | sort
+
+      - name: Upload the site
+        if: inputs.upload
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site

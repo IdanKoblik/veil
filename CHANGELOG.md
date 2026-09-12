@@ -1,17 +1,25 @@
 # Changelog
 
-All notable changes to Hush Hush are documented in this file.
+All notable changes to Veil are documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- The project is renamed from Hush Hush to Veil. The binaries are now `veil`
+  and `veil-gui`, the library is `libveil.a`, and the CMake options are
+  `VEIL_*` instead of `HH_*`.
+- **Breaking:** the container magic is now `VEIL` instead of `HUSH`, so images
+  encoded by an earlier release no longer decode.
+
 ## [1.0.0]
 
 ### Added
 
-- `hh-gui`, a desktop inspector. 
+- `veil-gui`, a desktop inspector. 
 - `analysis/stats.h`, four statistical tests over a carrier. None of them
   decodes anything: each scores, as a percentage, how far the carrier is from
   one whose low bits are random, which is what a payload leaves behind. The low
@@ -22,9 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   same ratio over `s[x + 1] - s[x]`, where correlated neighbours hold a
   photograph well below half. The last is the pairs of values test again over
   the quantised DCT coefficients, and is the only one a PNG cannot answer.
-- `hh analyse <target>`, which prints those four percentages and what the
+- `veil analyse <target>`, which prints those four percentages and what the
   carrier is, with `-e` to explain what each one measures.
-- An **Analysis** tab in `hh-gui`, showing the same four scores next to the
+- An **Analysis** tab in `veil-gui`, showing the same four scores next to the
   sample histogram, the balance of every pair of values, and the difference and
   coefficient histograms split by parity, drawn with ImPlot.
 
@@ -33,11 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Release builds are cut per architecture instead of per Ubuntu release: one
   `x86_64` and one `aarch64` set of assets, both built on 22.04 so they link
   against the oldest glibc available. The Ubuntu version is gone from every
-  asset name, leaving the loose `hh-<version>-linux-<arch>`,
-  `hh-gui-<version>-linux-<arch>` and `libhushhush-<version>-linux-<arch>.a`.
-  The `hush-hush-<version>-linux-<arch>.tar.gz` drop is gone: every asset is now
+  asset name, leaving the loose `veil-<version>-linux-<arch>`,
+  `veil-gui-<version>-linux-<arch>` and `libveil-<version>-linux-<arch>.a`.
+  The `veil-<version>-linux-<arch>.tar.gz` drop is gone: every asset is now
   a single file to download, and the headers are no longer published.
-- `inspect` command has been deleted. `hh analyse` replaces the end to end test
+- `inspect` command has been deleted. `veil analyse` replaces the end to end test
   that covered it.
 - `file_type_name` moved into `fs/file.h`, where the CLI and the GUI both reach
   it instead of keeping a copy each.
@@ -49,7 +57,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   bytes packed into an `LsbStream`, with `InspectRow` filled in place by the
   caller rather than allocated per byte. A megapixel carrier is millions of
   rows, and three allocations each was more than a viewer could carry.
-  `hh inspect` reads the same way and prints the same output.
+  `veil inspect` reads the same way and prints the same output.
 - Opening a JPEG and walking its coefficients moved into
   `handlers/jpeg.c`. `codecs/dct.c` and `analysis/dct.c` had grown their own
   copies of the walk and of the rule deciding which coefficients carry a bit,
@@ -60,7 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - LSB inspection read the alpha channel, which the codec never writes to, so
   the recovered stream was wrong for any RGBA carrier. It now skips alpha the
   way `codecs/lsb.c` does.
-- `hh inspect` leaked its rows and the decoded image on every run, and its
+- `veil inspect` leaked its rows and the decoded image on every run, and its
   pixel buffer again on the failure path.
 
 ## [0.1.1]

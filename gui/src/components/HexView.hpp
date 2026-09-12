@@ -6,7 +6,7 @@
 #include <veil/analysis/stream.h>
 
 class HexView {
-public:
+  public:
     static constexpr size_t columns = 16;
     static constexpr size_t nowhere = static_cast<size_t>(-1);
 
@@ -25,15 +25,15 @@ public:
 
     std::string selection_label(void) const;
 
-private:
+  private:
     static constexpr size_t offset_digits = 8;
 
-    size_t cursor = nowhere;   
+    size_t cursor = nowhere;
     size_t anchor = nowhere;
     size_t scroll_to = nowhere;
 
     bool dragging = false;
-    bool follow = false; 
+    bool follow = false;
 
     static float hex_x(float glyph) {
         return glyph * (offset_digits + 2);

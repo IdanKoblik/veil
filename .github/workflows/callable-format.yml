@@ -1,0 +1,53 @@
+name: Format
+
+on:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  # Pinned rather than taken from the runner image: clang-format's output drifts
+  # between releases, and an unpinned check would fail on version skew alone
+  # instead of on anything a contributor did. Keep this matching what developers
+  # install locally.
+  CLANG_FORMAT_VERSION: '22.1.8'
+
+jobs:
+  format:
+    name: clang-format
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install clang-format
+        run: |
+          pip install --disable-pip-version-check "clang-format==$CLANG_FORMAT_VERSION"
+          clang-format --version
+
+      - name: Check formatting
+        run: |
+          set -euo pipefail
+
+          # third_party and testing/greatest.h are vendored: they keep upstream's
+          # style, not ours.
+          mapfile -t files < <(git ls-files '*.c' '*.h' '*.cpp' '*.hpp' ':!:third_party/**' ':!:testing/greatest.h')
+
+          if [ "${#files[@]}" -eq 0 ]; then
+            echo "::error::No sources matched the formatting check"
+            exit 1
+          fi
+
+          printf 'Checking %d files\n' "${#files[@]}"
+          clang-format -i "${files[@]}"
+
+          if ! git diff --exit-code; then
+            echo "::error::Formatting differs from .clang-format. Run 'clang-format -i' over the files shown above (clang-format $CLANG_FORMAT_VERSION)."
+            exit 1
+          fi
+
+          echo "::notice::All ${#files[@]} files match .clang-format."

@@ -9,7 +9,7 @@
 #include <string>
 
 class Document {
-public:
+  public:
     Document() {
         this->state = ViewState();
     };
@@ -70,7 +70,7 @@ public:
         this->status.draw(this->summary());
     };
 
-protected:
+  protected:
     ViewState state;
 
     virtual void handle_shortcuts(void) {
@@ -87,7 +87,7 @@ protected:
         this->state.zoom = clampf(this->state.zoom * factor, ViewState::zoom_min, ViewState::zoom_max);
     };
 
-private:
+  private:
     AboutPopout about;
     StatusBar status;
 };

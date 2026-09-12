@@ -1,0 +1,138 @@
+name: Sync Labels
+
+on:
+  push:
+    paths:
+      - '.github/labels.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+
+            // Read labels file
+            const labels = JSON.parse(
+              fs.readFileSync('.github/labels.json', 'utf8')
+            );
+
+            if (!Array.isArray(labels)) {
+              throw new Error(
+                '.github/labels.json must contain an array of label objects'
+              );
+            }
+
+            // Validate labels
+            for (const [index, label] of labels.entries()) {
+              if (!label || typeof label !== 'object') {
+                throw new Error(
+                  `Label at index ${index} is not a valid object`
+                );
+              }
+
+              if (
+                typeof label.name !== 'string' ||
+                label.name.trim() === ''
+              ) {
+                throw new Error(
+                  `Label at index ${index} is missing a valid "name" field: ${JSON.stringify(label)}`
+                );
+              }
+
+              if (
+                typeof label.color !== 'string' ||
+                !/^[0-9a-fA-F]{6}$/.test(label.color)
+              ) {
+                throw new Error(
+                  `Label "${label.name}" has an invalid "color" field. Expected a 6-character hex code without '#'.`
+                );
+              }
+            }
+
+            // Fetch existing labels from GitHub
+            const existingLabels = await github.paginate(
+              github.rest.issues.listLabelsForRepo,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                per_page: 100,
+              }
+            );
+
+            const newLabelNames = new Set(
+              labels.map(label => label.name.toLowerCase())
+            );
+
+            // Delete labels that no longer exist in labels.json
+            for (const existingLabel of existingLabels) {
+              if (
+                existingLabel.name &&
+                !newLabelNames.has(existingLabel.name.toLowerCase())
+              ) {
+                try {
+                  await github.rest.issues.deleteLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: existingLabel.name,
+                  });
+
+                  console.log(`Deleted label: ${existingLabel.name}`);
+                } catch (error) {
+                  console.log(
+                    `Failed to delete label "${existingLabel.name}": ${error.message}`
+                  );
+                }
+              }
+            }
+
+            // Create or update labels
+            for (const label of labels) {
+              try {
+                const existingLabel = existingLabels.find(
+                  l =>
+                    l.name &&
+                    l.name.toLowerCase() === label.name.toLowerCase()
+                );
+
+                if (existingLabel) {
+                  await github.rest.issues.updateLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: existingLabel.name,
+                    new_name: label.name,
+                    color: label.color,
+                    description: label.description || '',
+                  });
+
+                  console.log(`Updated label: ${label.name}`);
+                } else {
+                  await github.rest.issues.createLabel({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    name: label.name,
+                    color: label.color,
+                    description: label.description || '',
+                  });
+
+                  console.log(`Created label: ${label.name}`);
+                }
+              } catch (error) {
+                console.log(
+                  `Error processing label "${label.name}": ${error.message}`
+                );
+              }
+            }
+
+            console.log('Label synchronization completed.');

@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.21)
 project(Veil
     VERSION 1.0.0
     DESCRIPTION "Steganography toolkit"
-    HOMEPAGE_URL "https://github.com/veil"
+    HOMEPAGE_URL "https://github.com/IdanKoblik/veil"
     LANGUAGES C CXX
 )
 

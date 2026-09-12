@@ -1,13 +1,13 @@
 #pragma once
 
-#include <imgui.h>
-#include <rlImGui.h>
-#include <algorithm>
-#include <vector>
-#include <string>
-#include <portable-file-dialogs.h>
 #include "app/widgets.hpp"
 #include "window.hpp"
+#include <algorithm>
+#include <imgui.h>
+#include <portable-file-dialogs.h>
+#include <rlImGui.h>
+#include <string>
+#include <vector>
 
 void begin_frame(void) {
     BeginDrawing();
@@ -86,10 +86,7 @@ std::string welcome(const char *problem) {
         begin_frame();
         fill_viewport();
 
-        ImGui::Begin("##welcome", nullptr,
-                     ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove |
-                     ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus
-        );
+        ImGui::Begin("##welcome", nullptr, ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus);
 
         ImGui::SetCursorPos(ImVec2((ImGui::GetWindowWidth() - card_w) * 0.5f, (ImGui::GetWindowHeight() - card_h) * 0.5f));
 
@@ -119,8 +116,7 @@ std::string welcome(const char *problem) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accent_hover);
 
         if (ImGui::Button("Open a carrier...", ImVec2(-FLT_MIN, 0.0f))) {
-            const std::vector<std::string> picked =
-                pfd::open_file("Open a carrier", ".", {"Images", "*.png *.jpg *.jpeg", "All files", "*"}).result();
+            const std::vector<std::string> picked = pfd::open_file("Open a carrier", ".", {"Images", "*.png *.jpg *.jpeg", "All files", "*"}).result();
 
             if (!picked.empty())
                 target = picked[0];

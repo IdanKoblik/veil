@@ -7,8 +7,8 @@
 struct Matches {
     std::vector<size_t> offsets;
 
-    size_t len = 0;     
-    size_t current = 0; 
+    size_t len = 0;
+    size_t current = 0;
 };
 
 inline void matches_row(const Matches &matches, size_t offset, size_t count, bool *hit, bool *current) {

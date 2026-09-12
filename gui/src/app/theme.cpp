@@ -82,4 +82,4 @@ void apply(void) {
     c[ImGuiCol_ModalWindowDimBg] = ImVec4(0.02f, 0.02f, 0.03f, 0.60f);
 }
 
-} // theme
+} // namespace theme

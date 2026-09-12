@@ -1,0 +1,94 @@
+name: Changelog
+
+on:
+  workflow_call:
+    inputs:
+      skip:
+        description: 'Skip the CHANGELOG.md check'
+        required: false
+        type: boolean
+        default: false
+      version:
+        description: 'Release version being cut, without the leading v. Empty on a normal run.'
+        required: false
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+env:
+  # Pull requests skip the changelog check by carrying this label.
+  SKIP_CHANGELOG_LABEL: 'ci/skip-changelog'
+
+jobs:
+  changelog:
+    name: Changelog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Two ways to skip: the label on a pull request, or the checkbox on a
+      # manual run. Either one turns the rest of this job into a no-op.
+      - name: Resolve skip
+        id: skip
+        env:
+          LABELS: ${{ join(github.event.pull_request.labels.*.name, ',') }}
+          INPUT_SKIP: ${{ inputs.skip }}
+        run: |
+          skip=false
+          reason=""
+
+          if [ "$INPUT_SKIP" = "true" ]; then
+            skip=true
+            reason="the 'Skip the CHANGELOG.md check' box was ticked"
+          elif printf '%s' ",$LABELS," | grep -qF ",$SKIP_CHANGELOG_LABEL,"; then
+            skip=true
+            reason="the '$SKIP_CHANGELOG_LABEL' label is applied"
+          fi
+
+          if [ "$skip" = "true" ]; then
+            echo "::notice::Changelog check skipped, $reason."
+            echo "Changelog check skipped: $reason." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "skip=$skip" >> "$GITHUB_OUTPUT"
+
+      - name: Check that CHANGELOG.md exists
+        if: steps.skip.outputs.skip == 'false'
+        run: |
+          if [ ! -f CHANGELOG.md ]; then
+            echo "::error::CHANGELOG.md is missing"
+            exit 1
+          fi
+
+      # Pull request: the branch has to touch CHANGELOG.md.
+      - name: Check for a changelog entry
+        if: steps.skip.outputs.skip == 'false' && github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if git diff --name-only "origin/$BASE_REF...HEAD" | grep -qx 'CHANGELOG.md'; then
+            echo "::notice::CHANGELOG.md was updated."
+            exit 0
+          fi
+
+          echo "::error::CHANGELOG.md was not updated. Add an entry under '## [Unreleased]', or apply the '$SKIP_CHANGELOG_LABEL' label."
+          exit 1
+
+      # Release run: the version being cut has to have its own section.
+      - name: Check for a released section
+        if: steps.skip.outputs.skip == 'false' && inputs.version != ''
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION#v}"
+
+          if ! grep -q "^## \[$version\]" CHANGELOG.md; then
+            echo "::error::No '## [$version]' section in CHANGELOG.md. Add one, or tick 'Skip the CHANGELOG.md check'."
+            exit 1
+          fi
+
+          echo "::notice::Found the CHANGELOG.md section for $version."

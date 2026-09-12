@@ -3,6 +3,6 @@
 #include <string>
 
 class StatusBar {
-public:
+  public:
     void draw(const std::string &left);
 };

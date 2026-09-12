@@ -1,10 +1,9 @@
 #include "cmd/command.h"
 #include "src/usage.h"
-#include <veil/log.h>
-#include <jpeglib.h>
 #include <sodium.h>
 #include <stddef.h>
 #include <stdio.h>
+#include <veil/log.h>
 
 #include "flag.h"
 

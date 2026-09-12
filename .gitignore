@@ -2,7 +2,7 @@
 imgui.ini
 build/*
 coverage/*
-hh
+/veil
 compile_commands.json
 CMakeUserPresets.json
 

@@ -11,7 +11,7 @@ int encode(const char *target, const char *output, enum CodecType codec_type, co
         return -1;
     }
 
-    if(!data) {
+    if (!data) {
         ERROR("Source is absent");
         return -1;
     }
@@ -35,21 +35,18 @@ int encode(const char *target, const char *output, enum CodecType codec_type, co
     }
 
     if (is_image_file(file_type)) {
-        struct ImageCtx ctx = {
-            .source_file = target,
-            .output_file = output,
+        struct ImageCtx ctx = {.source_file = target,
+                               .output_file = output,
 
-            .image_type = file_type,
-            .codec_type = codec_type,
+                               .image_type = file_type,
+                               .codec_type = codec_type,
 
-            .passphrase = passphrase[0] ? passphrase : NULL
-        };
+                               .passphrase = passphrase[0] ? passphrase : NULL};
 
         if (encode_image(&ctx, data, data_len) < 0) {
             ERROR("Failed to encode data to the targeted file");
             return -1;
         }
-
 
         *(struct ImageCtx *)ctx_ = ctx;
     }

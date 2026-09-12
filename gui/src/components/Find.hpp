@@ -6,7 +6,7 @@
 #include <veil/analysis/stream.h>
 
 class Find {
-public:
+  public:
     static constexpr size_t limit = 4096;
 
     bool draw(const struct Stream &stream, bool *open);
@@ -22,7 +22,7 @@ public:
         return this->found.len;
     };
 
-private:
+  private:
     enum Mode { MODE_TEXT, MODE_HEX };
 
     char query[128] = "";

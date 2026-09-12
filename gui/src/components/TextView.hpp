@@ -6,14 +6,14 @@
 #include <veil/analysis/stream.h>
 
 class TextView {
-public:
+  public:
     static constexpr size_t columns_max = 512;
     static constexpr size_t nowhere = static_cast<size_t>(-1);
 
     void draw(const struct Stream &stream, const Matches &matches);
     void reveal(size_t offset);
 
-private:
+  private:
     size_t scroll_to = nowhere;
     size_t columns = 64;
 

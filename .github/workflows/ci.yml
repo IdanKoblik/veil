@@ -1,0 +1,261 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (semver, with or without leading "v"). Leave empty to only run the checks.'
+        required: false
+        type: string
+        default: ''
+      skip_changelog:
+        description: 'Skip the CHANGELOG.md check'
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: 'Mark the release as a pre-release'
+        required: false
+        type: boolean
+        default: false
+      draft:
+        description: 'Create the release as a draft'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  # All three suites start immediately and in parallel: they are the gate
+  # everything downstream waits on.
+  core-tests:
+    name: Core
+    uses: ./.github/workflows/callable-tests.yml
+    with:
+      suite: core
+      # Building without the CLI also proves the library has no dependency on it.
+      build-cli: false
+
+  cli-tests:
+    name: CLI
+    uses: ./.github/workflows/callable-tests.yml
+    with:
+      suite: cli
+
+  gui-tests:
+    name: GUI
+    uses: ./.github/workflows/callable-tests.yml
+    with:
+      suite: gui
+      # The GUI links the library directly, so the CLI plays no part here.
+      build-cli: false
+      build-gui: true
+
+  web:
+    name: Web
+    uses: ./.github/workflows/callable-web.yml
+    with:
+      upload: ${{ github.event_name != 'pull_request' }}
+
+  # Formatting is a style gate, not a build gate, so it runs once the suites have
+  # shown the tree is actually sound.
+  format:
+    name: Format
+    needs: [core-tests, cli-tests, gui-tests]
+    uses: ./.github/workflows/callable-format.yml
+
+  changelog:
+    name: Changelog
+    uses: ./.github/workflows/callable-changelog.yml
+    with:
+      skip: ${{ inputs.skip_changelog == true }}
+      version: ${{ inputs.version || '' }}
+
+  coverage:
+    name: Coverage
+    needs: [core-tests, cli-tests, gui-tests]
+    uses: ./.github/workflows/callable-coverage.yml
+
+  # Pushing to main publishes the page, and so does cutting a release, once the
+  # release itself is out -- so the two never disagree about what is live.
+  # format and coverage stand in for the three suites here: both already wait on
+  # all of them, and neither has run if any of them failed.
+  pages:
+    name: Deploy to Pages
+    needs: [web, format, coverage, publish]
+    if: >-
+      always()
+      && needs.web.result == 'success'
+      && needs.format.result == 'success'
+      && needs.coverage.result == 'success'
+      && (
+           (github.event_name == 'push' && github.ref == 'refs/heads/main')
+           || (github.event_name == 'workflow_dispatch' && needs.publish.result == 'success')
+         )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    # Pages runs one deployment at a time, and a cancelled one leaves the site
+    # on the previous version, so these queue instead of replacing each other.
+    # Deliberately its own group, outside the workflow wide one at the top.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
+    steps:
+      - name: Deploy
+        id: deploy
+        uses: actions/deploy-pages@v4
+
+  prepare:
+    name: Prepare release
+    if: github.event_name == 'workflow_dispatch' && inputs.version != ''
+    # Nothing is tagged until the changelog, the formatting and the coverage run
+    # have all passed; the test suites are covered through the last two.
+    needs: [changelog, format, coverage]
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version
+        id: version
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+        run: |
+          version="${INPUT_VERSION#v}"
+
+          if ! printf '%s' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'; then
+            echo "::error::'$INPUT_VERSION' is not a valid semantic version (e.g. 1.2.3 or v1.2.3-rc.1)"
+            exit 1
+          fi
+
+          tag="v$version"
+
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "::error::Tag $tag already exists"
+            exit 1
+          fi
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Releasing $tag" >> "$GITHUB_STEP_SUMMARY"
+
+  release-build:
+    name: Release build
+    needs: [prepare]
+    uses: ./.github/workflows/callable-release-build.yml
+    with:
+      version: ${{ needs.prepare.outputs.version }}
+
+  publish:
+    name: Publish release
+    needs: [prepare, release-build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      # One checksums.txt over every asset, rather than a loose .sha256 beside
+      # each one, so `sha256sum -c checksums.txt` verifies the whole release.
+      # Everything downloaded is an asset, so the only file to leave out is the
+      # checksum list itself.
+      - name: Write checksums
+        run: |
+          set -euo pipefail
+
+          cd dist
+          find . -maxdepth 1 -type f ! -name checksums.txt -printf '%P\0' \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | tee checksums.txt
+
+      # The section for this version, when there is one. With the changelog
+      # check skipped the release falls back to generated notes.
+      - name: Extract release notes
+        id: notes
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          awk -v ver="$VERSION" '
+            /^## \[/ {
+              if (found) exit
+              heading = $0
+              sub(/^## \[/, "", heading)
+              sub(/\].*$/, "", heading)
+              if (heading == ver) found = 1
+              next
+            }
+            found && /^\[[^]]+\]:/ { exit }
+            found { print }
+          ' CHANGELOG.md | sed -e '/./,$!d' | tac | sed -e '/./,$!d' | tac > release-notes.md
+
+          if [ -s release-notes.md ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::No CHANGELOG.md section for $VERSION, falling back to generated notes."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create tag
+        env:
+          TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$TAG" -m "Release $TAG"
+          git push origin "$TAG"
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          DRAFT: ${{ inputs.draft }}
+          PRERELEASE: ${{ inputs.prerelease }}
+          HAS_NOTES: ${{ steps.notes.outputs.found }}
+        run: |
+          args=(--title "$TAG" --target "$GITHUB_SHA")
+
+          if [ "$HAS_NOTES" = "true" ]; then
+            args+=(--notes-file release-notes.md)
+          else
+            args+=(--generate-notes)
+          fi
+
+          if [ "$DRAFT" = "true" ]; then args+=(--draft); fi
+          if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
+
+          # Loose assets only: veil and veil-gui per architecture (both matched by
+          # dist/veil-*), libveil.a to link against, and the checksum list.
+          gh release create "$TAG" "${args[@]}" \
+            dist/veil-* \
+            dist/libveil-*.a \
+            dist/checksums.txt
+          echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"

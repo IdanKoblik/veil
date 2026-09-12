@@ -7,7 +7,7 @@
 #include <sys/wait.h>
 #include <unistd.h>
 
-#define PAYLOAD "$$HUSH$$ the payload begins here and runs for a while"
+#define PAYLOAD "$$VEIL$$ the payload begins here and runs for a while"
 
 static char *temp_path(const char *stem) {
     char path[64];
@@ -40,7 +40,9 @@ static char *payload_file(const char *bytes) {
 
 static int run(const char *args, const char *passphrase) {
     char command[1024];
-    snprintf(command, sizeof(command), VEIL_BINARY " %s >/dev/null 2>&1", args);
+    const int len = snprintf(command, sizeof(command), VEIL_BINARY " %s >/dev/null 2>&1", args);
+    if (len < 0 || (size_t)len >= sizeof(command))
+        return -1;
 
     FILE *veil = popen(command, "w");
     if (!veil)

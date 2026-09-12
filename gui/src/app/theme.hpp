@@ -29,4 +29,4 @@ constexpr ImVec4 byte_other = ImVec4(0.74f, 0.76f, 0.80f, 1.00f);
 ImVec4 byte_color(unsigned char byte);
 void apply(void);
 
-} // theme
+} // namespace theme

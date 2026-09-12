@@ -1,0 +1,48 @@
+name: Feature request
+description: Suggest a new capability or an improvement to an existing one.
+title: '[Feature]: '
+labels: ['type/feature']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the idea. Please describe the **problem** before the
+        solution. A different solution often fits better, and we can only see
+        that if we understand what you're up against.
+
+        Veil is a tool for privacy, research and learning how
+        steganography works. Requests aimed at moving stolen data, evading a
+        specific detection system, or hiding malware will be declined.
+
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched the [existing issues](https://github.com/IdanKoblik/veil/issues?q=is%3Aissue) and this hasn't been requested.
+          required: true
+        - label: I read the [README](https://github.com/IdanKoblik/veil#readme) and this isn't already possible.
+          required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Description?
+      description: What you are trying to achieve?
+      placeholder: |
+        I want to hide a payload in a JPEG I already have, and right now the
+        only way is to convert it to PNG first, which makes the file suspicious
+        on its own.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: contribute
+    attributes:
+      label: Would you be willing to implement this?
+      options:
+        - "Yes, I'd like to open a pull request"
+        - 'Maybe, with some guidance'
+        - 'No, just suggesting it'
+    validations:
+      required: true
