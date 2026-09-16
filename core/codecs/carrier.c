@@ -2,7 +2,7 @@
 #include "../fs/file.h"
 #include "image/lsb.h"
 
-inline Carrier *figure_carrier(const char* target) {
+Carrier *figure_carrier(const char* target) {
     if (!target)
         return NULL;
 

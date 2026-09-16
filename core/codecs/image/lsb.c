@@ -34,6 +34,9 @@ static void lsb_matching(unsigned char *pixel, unsigned char bit) {
 }
 
 static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit) {
+    if (!carrier)
+        return -1;
+
     const struct LsbCarrier *image = (struct LsbCarrier *)carrier;
     if (slot >= image->slots)
         return -1;
@@ -42,6 +45,26 @@ static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit)
     lsb_matching(pixel, bit);
 
     return 0;
+}
+
+static unsigned char c_read(Carrier *carrier, size_t slot) {
+    if (!carrier)
+        return '\0';
+
+    const struct LsbCarrier *image = (struct LsbCarrier *)carrier;
+    if (slot >= image->slots)
+        return -1;
+
+    const unsigned char pixel = image->pixels[slot_to_pixel(image, slot)];
+    return pixel & 1;
+}
+
+static int c_capacity(Carrier *carrier) {
+    if (!carrier)
+        return -1;
+
+    const struct LsbCarrier *image = (struct LsbCarrier *)carrier;
+    return (int)image->slots;
 }
 
 static int c_free(Carrier *carrier) {
@@ -74,6 +97,8 @@ struct LsbCarrier *lsb_carrier_init(const char *target) {
     carrier->slots = width * height * carrier->colors * sizeof(*raw);
 
     carrier->carrier.write = c_write;
+    carrier->carrier.read = c_read;
+    carrier->carrier.capacity = c_capacity;
     carrier->carrier.free = c_free;
     return carrier;
 }
