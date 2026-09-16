@@ -6,6 +6,7 @@
 #include <veil/log.h>
 
 #include "codecs/container.h"
+#include "fs/checksum.h"
 
 #define CHUNK_SIZE (64 * 1024)
 
@@ -34,6 +35,7 @@ int encode(const char *target, const char *data_file, const char *output, char p
         goto done;
 
     size_t total = 0;
+    unsigned char checksum = 0;
     for (;;) {
         const ssize_t n = read(fd, buffer, sizeof(buffer));
         if (n < 0) {
@@ -51,11 +53,13 @@ int encode(const char *target, const char *data_file, const char *output, char p
             goto done;
 
         crypto_generichash_update(&hash, buffer, (size_t)n);
+        checksum += calculate_checksum(buffer, (size_t)n);
 
         total += (size_t)n;
     }
 
     container->header.payload_len = total;
+    container->header.checksum = checksum;
     if (container_write_header(container) < 0)
         goto done;
 
