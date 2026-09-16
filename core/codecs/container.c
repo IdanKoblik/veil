@@ -231,7 +231,7 @@ int container_read_header(struct Container *container) {
     header.flags = preamble[off++];
 
     if (memcmp(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN) != 0) {
-        DEBUG("No container found in %s", container->target);
+        ERROR("No container found in %s", container->target);
         return -1;
     }
 

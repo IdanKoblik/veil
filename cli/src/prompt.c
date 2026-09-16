@@ -61,14 +61,14 @@ int read_passphrase(const char *prompt, int fd, char *out, size_t size) {
             silent = 0;
     }
 
-    printf("%s", prompt);
-    fflush(stdout);
+    // stderr, so the prompt doesn't end up in a payload written to stdout.
+    fprintf(stderr, "%s", prompt);
 
     int status = read_line_raw(fd, out, size);
 
     if (silent) {
         tcsetattr(fd, TCSAFLUSH, &original);
-        printf("\n");
+        fprintf(stderr, "\n");
     }
 
     if (status < 0)

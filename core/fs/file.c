@@ -1,6 +1,7 @@
 #include "file.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <veil/log.h>
 
 #include "stb_image.h"
@@ -66,6 +67,10 @@ enum FileType detect_image_type(const char *target) {
 
 enum FileType get_file_type(const char *target) {
     enum FileType type;
+
+    // stbi_info fails on a missing file too, so without this it reads as unknown rather than not found.
+    if (!target || access(target, F_OK) != 0)
+        return TYPE_NOT_FOUND;
 
     type = detect_image_type(target);
     if (type != TYPE_UNKNOWN)

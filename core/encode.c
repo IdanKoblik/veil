@@ -9,7 +9,7 @@
 
 #define CHUNK_SIZE (64 * 1024)
 
-int encode(const char *target, const char *data_file, const char *output, char passphrase[PASSPHRASE_MAX]) {
+int encode(const char *target, const char *data_file, const char *output, char passphrase[PASSPHRASE_MAX], unsigned char digest[PAYLOAD_DIGEST_BYTES], size_t *payload_len) {
     if (!target || !data_file || !output)
         return -1;
 
@@ -22,6 +22,9 @@ int encode(const char *target, const char *data_file, const char *output, char p
 
     int rc = -1;
     unsigned char buffer[CHUNK_SIZE];
+
+    crypto_generichash_state hash;
+    crypto_generichash_init(&hash, NULL, 0, PAYLOAD_DIGEST_BYTES);
 
     struct Container *container = container_init(target, passphrase);
     if (!container)
@@ -47,6 +50,8 @@ int encode(const char *target, const char *data_file, const char *output, char p
         if (container_encode_chunk(container, buffer, (size_t)n) < 0)
             goto done;
 
+        crypto_generichash_update(&hash, buffer, (size_t)n);
+
         total += (size_t)n;
     }
 
@@ -57,9 +62,16 @@ int encode(const char *target, const char *data_file, const char *output, char p
     if (container->carrier->save(container->carrier, output) < 0)
         goto done;
 
+    if (digest)
+        crypto_generichash_final(&hash, digest, PAYLOAD_DIGEST_BYTES);
+
+    if (payload_len)
+        *payload_len = total;
+
     DEBUG("Encoded %zu bytes into %s", total, output);
     rc = 0;
 done:
+    sodium_memzero(&hash, sizeof(hash));
     sodium_memzero(buffer, sizeof(buffer));
     container_free(container);
     if (!is_pipe)

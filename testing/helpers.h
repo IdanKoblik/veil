@@ -59,3 +59,32 @@ static inline char *create_test_jpg(int width, int height, int quality) {
     free(pixels);
     return strdup(path);
 }
+
+static inline char *create_temp_path(void) {
+    char path[] = "/tmp/test_XXXXXX";
+    int fd = mkstemp(path);
+    if (fd < 0)
+        return NULL;
+
+    close(fd);
+    return strdup(path);
+}
+
+static inline char *create_temp_file(const unsigned char *data, size_t len) {
+    char *path = create_temp_path();
+    if (!path)
+        return NULL;
+
+    FILE *file = fopen(path, "wb");
+    if (!file || (len && fwrite(data, 1, len, file) != len)) {
+        if (file)
+            fclose(file);
+
+        unlink(path);
+        free(path);
+        return NULL;
+    }
+
+    fclose(file);
+    return path;
+}
