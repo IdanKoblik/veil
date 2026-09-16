@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add data checksum to container header. 
 - `veil(1)` man page, installed with the CLI and published with each release.
 - `devtools/install.sh` and `devtools/uninstall.sh`, which fetch the release binary and check it against `checksums.txt`.
 - An Arch `PKGBUILD` and `packaging/build_appimage.sh` for a `veil-gui` AppImage.
-- A `VERSION` file the build and the release workflow both read.
 
 ### Changed
 

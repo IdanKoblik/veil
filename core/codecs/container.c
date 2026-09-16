@@ -85,7 +85,7 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
     memcpy(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN);
 
     container->preamble_bits = CONTAINER_PREAMBLE_BYTES * 8;
-    container->header_bits = PAYLOAD_LEN_BYTES * 8;
+    container->header_bits = CONTAINER_CLEAR_BYTES * 8;
     if (encrypted) {
         container->preamble_bits += CONTAINER_KDF_BYTES * 8;
         container->header_bits = CONTAINER_SEALED_BYTES * 8;
@@ -184,11 +184,12 @@ int container_write_header(struct Container *container) {
     for (size_t i = 0; i < PAYLOAD_LEN_BYTES; i++)
         secret[i] = (unsigned char)((uint64_t)header->payload_len >> (i * 8));
 
-    memcpy(secret + PAYLOAD_LEN_BYTES, header->payload_nonce, PAYLOAD_NONCE_LEN);
+    secret[PAYLOAD_LEN_BYTES] = header->checksum;
+    memcpy(secret + CONTAINER_CLEAR_BYTES, header->payload_nonce, PAYLOAD_NONCE_LEN);
 
     int rc;
     if (!encrypted) {
-        rc = write_bytes(container->carrier, secret, PAYLOAD_LEN_BYTES, container->header_slots, 0);
+        rc = write_bytes(container->carrier, secret, CONTAINER_CLEAR_BYTES, container->header_slots, 0);
     } else {
         unsigned char sealed[CONTAINER_SEALED_BYTES];
         crypto_secretbox_easy(sealed, secret, sizeof(secret), header->header_nonce, container->box_key);
@@ -248,7 +249,7 @@ int container_read_header(struct Container *container) {
     }
 
     size_t preamble_bits = CONTAINER_PREAMBLE_BYTES * 8;
-    size_t header_bits = PAYLOAD_LEN_BYTES * 8;
+    size_t header_bits = CONTAINER_CLEAR_BYTES * 8;
     if (encrypted) {
         preamble_bits += CONTAINER_KDF_BYTES * 8;
         header_bits = CONTAINER_SEALED_BYTES * 8;
@@ -299,7 +300,7 @@ int container_read_header(struct Container *container) {
 
     unsigned char secret[CONTAINER_SECRET_BYTES] = {0};
     if (!encrypted) {
-        rc = read_bytes(carrier, secret, PAYLOAD_LEN_BYTES, container->header_slots, 0);
+        rc = read_bytes(carrier, secret, CONTAINER_CLEAR_BYTES, container->header_slots, 0);
         if (rc < 0)
             ERROR("Failed to read the container header (%s)", container->target);
     } else {
@@ -322,7 +323,8 @@ int container_read_header(struct Container *container) {
     for (size_t i = 0; i < PAYLOAD_LEN_BYTES; i++)
         payload_len |= (uint64_t)secret[i] << (i * 8);
 
-    memcpy(header.payload_nonce, secret + PAYLOAD_LEN_BYTES, PAYLOAD_NONCE_LEN);
+    header.checksum = secret[PAYLOAD_LEN_BYTES];
+    memcpy(header.payload_nonce, secret + CONTAINER_CLEAR_BYTES, PAYLOAD_NONCE_LEN);
     sodium_memzero(secret, sizeof(secret));
 
     const size_t remaining_bits = scatter_capacity - container->scatter.pos;

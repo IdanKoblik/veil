@@ -11,7 +11,7 @@ extern "C" {
 
 #define VEIL_MAGIC "VEIL"
 #define VEIL_MAGIC_LEN (sizeof(VEIL_MAGIC) - 1)
-#define VEIL_CONTAINER_VERSION 2
+#define VEIL_CONTAINER_VERSION 3
 
 #define VEIL_FLAG_ENCRYPTED 0x01
 
@@ -20,10 +20,12 @@ extern "C" {
 #define PAYLOAD_NONCE_LEN crypto_secretbox_NONCEBYTES
 
 #define PAYLOAD_LEN_BYTES 8
+#define PAYLOAD_CHECKSUM_BYTES 1
 
 #define CONTAINER_PREAMBLE_BYTES (VEIL_MAGIC_LEN + 1 + 1)
 #define CONTAINER_KDF_BYTES (SALT_LEN + HEADER_NONCE_LEN)
-#define CONTAINER_SECRET_BYTES (PAYLOAD_LEN_BYTES + PAYLOAD_NONCE_LEN)
+#define CONTAINER_CLEAR_BYTES (PAYLOAD_LEN_BYTES + PAYLOAD_CHECKSUM_BYTES)
+#define CONTAINER_SECRET_BYTES (CONTAINER_CLEAR_BYTES + PAYLOAD_NONCE_LEN)
 #define CONTAINER_SEALED_BYTES (CONTAINER_SECRET_BYTES + crypto_secretbox_MACBYTES)
 #define CONTAINER_HEADER_BITS_MAX (CONTAINER_SEALED_BYTES * 8)
 
@@ -33,6 +35,7 @@ struct ContainerHeader {
     unsigned char flags;
 
     size_t payload_len;
+    unsigned char checksum;
 
     unsigned char salt[SALT_LEN];
     unsigned char header_nonce[HEADER_NONCE_LEN];

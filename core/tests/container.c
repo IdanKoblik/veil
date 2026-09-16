@@ -4,6 +4,7 @@
 
 #include "helpers.h"
 #include "veil/codecs/container.h"
+#include "veil/fs/checksum.h"
 
 #define PAYLOAD_LEN 96
 
@@ -25,6 +26,7 @@ static enum greatest_test_res embed(const char *target, const char *output, cons
     ASSERT(container);
 
     container->header.payload_len = len;
+    container->header.checksum = calculate_checksum(payload, len);
     ASSERT_EQ(0, container_reserve_header(container));
     ASSERT_EQ(0, container_encode_chunk(container, payload, len));
     ASSERT_EQ(0, container_write_header(container));
@@ -39,6 +41,7 @@ static enum greatest_test_res extract(const char *target, const char *passphrase
     ASSERT(container);
     ASSERT_EQ(0, container_read_header(container));
     ASSERT_EQ(len, container->header.payload_len);
+    ASSERT_EQ(calculate_checksum(want, len), container->header.checksum);
 
     unsigned char *got = NULL;
     ASSERT_EQ(0, container_decode_chunk(container, &got, len));
@@ -136,9 +139,10 @@ TEST container_lays_out_a_clear_header_in_order(void) {
         len |= (uint64_t)read_byte(carrier, CONTAINER_PREAMBLE_BYTES + i) << (i * 8);
 
     ASSERT_EQ((uint64_t)sizeof(payload), len);
+    ASSERT_EQ(calculate_checksum(payload, sizeof(payload)), read_byte(carrier, CONTAINER_PREAMBLE_BYTES + PAYLOAD_LEN_BYTES));
 
     for (size_t i = 0; i < sizeof(payload); i++)
-        ASSERT_EQ(payload[i], read_byte(carrier, CONTAINER_PREAMBLE_BYTES + PAYLOAD_LEN_BYTES + i));
+        ASSERT_EQ(payload[i], read_byte(carrier, CONTAINER_PREAMBLE_BYTES + CONTAINER_CLEAR_BYTES + i));
 
     carrier->free(carrier);
     unlink(image);
