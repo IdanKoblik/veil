@@ -80,11 +80,7 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
         container->passphrase[PASSPHRASE_MAX - 1] = '\0';
     }
 
-    struct ContainerHeader header = {
-        .version = VEIL_VERSION,
-        .payload_len = 0,
-        .flags = encrypted ? VEIL_FLAG_ENCRYPTED : 0
-    };
+    struct ContainerHeader header = {.version = VEIL_VERSION, .payload_len = 0, .flags = encrypted ? VEIL_FLAG_ENCRYPTED : 0};
 
     memcpy(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN);
 

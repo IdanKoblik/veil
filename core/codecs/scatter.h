@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stddef.h>
 #include "../crypto/prng.h"
+#include <stddef.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,13 +17,7 @@ struct Scatter {
     int encrypted;
 };
 
-int scatter_init(
-    struct Scatter *scatter,
-    size_t capacity,
-    int encrypted,
-    const unsigned char *key,
-    const unsigned char *nonce
-);
+int scatter_init(struct Scatter *scatter, size_t capacity, int encrypted, const unsigned char *key, const unsigned char *nonce);
 
 size_t scatter_next(struct Scatter *scatter);
 void scatter_clear(struct Scatter *scatter);

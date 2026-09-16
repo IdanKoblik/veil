@@ -39,8 +39,7 @@ static int exec(int argc, char *argv[]) {
 
     struct stat target_stat;
     struct stat output_stat;
-    if (strcmp(output_file, "-") != 0 && stat(target, &target_stat) == 0 && stat(output_file, &output_stat) == 0 &&
-        target_stat.st_dev == output_stat.st_dev && target_stat.st_ino == output_stat.st_ino) {
+    if (strcmp(output_file, "-") != 0 && stat(target, &target_stat) == 0 && stat(output_file, &output_stat) == 0 && target_stat.st_dev == output_stat.st_dev && target_stat.st_ino == output_stat.st_ino) {
         ERROR("Refusing to decode %s into itself, pick another output with -o", target);
         return EXEC_GENERIC_ERROR;
     }

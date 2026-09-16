@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stddef.h>
 #include "../carrier.h"
+#include <stddef.h>
 #include <veil/handlers/jpeg.h>
 
 #ifdef __cplusplus

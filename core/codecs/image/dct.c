@@ -1,7 +1,7 @@
 #include "dct.h"
 
-#include <stdlib.h>
 #include <sodium/randombytes.h>
+#include <stdlib.h>
 #include <veil/log.h>
 
 static void dct_matching(JCOEF *coefficient, unsigned char bit) {

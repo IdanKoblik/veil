@@ -1,7 +1,7 @@
 #include "lsb.h"
-#include <sodium/randombytes.h>
 #include "stb_image.h"
 #include "stb_image_write.h"
+#include <sodium/randombytes.h>
 #include <veil/log.h>
 
 static size_t color_channels(const size_t channels) {

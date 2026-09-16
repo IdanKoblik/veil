@@ -3,13 +3,7 @@
 #include <stdlib.h>
 #include <veil/log.h>
 
-int scatter_init(
-    struct Scatter *scatter,
-    size_t capacity,
-    int encrypted,
-    const unsigned char *key,
-    const unsigned char *nonce
-) {
+int scatter_init(struct Scatter *scatter, size_t capacity, int encrypted, const unsigned char *key, const unsigned char *nonce) {
     scatter->capacity = capacity;
     scatter->pos = 0;
     scatter->encrypted = encrypted;
@@ -32,11 +26,7 @@ int scatter_init(
     for (size_t i = 0; i < capacity; i++)
         scatter->slots[i] = i;
 
-    prng_init(
-        &scatter->prng,
-        key,
-        nonce
-    );
+    prng_init(&scatter->prng, key, nonce);
 
     return 0;
 }
@@ -53,10 +43,7 @@ size_t scatter_next(struct Scatter *scatter) {
         return SIZE_MAX;
 
     size_t remaining = scatter->capacity - scatter->pos;
-    size_t offset = prng_uniform(
-            &scatter->prng,
-            remaining
-    );
+    size_t offset = prng_uniform(&scatter->prng, remaining);
 
     size_t index = scatter->pos + offset;
     size_t slot = scatter->slots[index];

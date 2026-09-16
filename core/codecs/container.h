@@ -1,9 +1,9 @@
 #pragma once
 
+#include "scatter.h"
 #include <stddef.h>
 #include <veil/codecs/carrier.h>
 #include <veil/crypto/passphrase.h>
-#include "scatter.h"
 
 #ifdef __cplusplus
 extern "C" {
