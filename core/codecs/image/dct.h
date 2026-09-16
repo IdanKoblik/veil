@@ -15,7 +15,7 @@ struct DctCarrier {
     JCOEF *values;
     size_t slots;
 
-    struct JpegImage *jpeg_image;
+    struct JpegImage jpeg_image;
 };
 
 struct DctCarrier *dct_carrier_init(const char *target);

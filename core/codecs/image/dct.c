@@ -24,7 +24,6 @@ static void coefficient_collect(JCOEF *coefficient, size_t slot, void *ctx) {
 }
 
 static int coefficients_load(struct JpegImage *image, struct DctCarrier *carrier) {
-    carrier->jpeg_image = image;
     carrier->slots = jpeg_walk_coefficients(image, NULL, NULL);
     if (carrier->slots == 0) {
         ERROR("The image carries no usable DCT carrier");
@@ -86,36 +85,39 @@ static int c_free(Carrier *carrier) {
     if (!carrier)
         return -1;
 
-    const struct DctCarrier *image = (struct DctCarrier *)carrier;
-    jpeg_image_close(image->jpeg_image);
-    free(carrier);
+    struct DctCarrier *image = (struct DctCarrier *)carrier;
+    jpeg_image_close(&image->jpeg_image);
+    free(image->values);
+    free(image);
+    return 0;
 }
 
 struct DctCarrier *dct_carrier_init(const char *target) {
     if (!target)
         return NULL;
 
-    struct JpegImage image;
-    if (jpeg_image_open(&image, target) < 0)
-        return NULL;
-
-    struct DctCarrier *carrier = malloc(sizeof(*carrier));
+    struct DctCarrier *carrier = calloc(1, sizeof(*carrier));
     if (!carrier) {
         ERROR("Failed to allocate the DCT carrier");
-        jpeg_image_close(&image);
         return NULL;
     }
 
-    if (coefficients_load(&image, carrier) < 0)
+    if (jpeg_image_open(&carrier->jpeg_image, target) < 0) {
+        free(carrier);
+        return NULL;
+    }
+
+    if (coefficients_load(&carrier->jpeg_image, carrier) < 0)
         goto fail;
 
     carrier->carrier.write = c_write;
     carrier->carrier.read = c_read;
     carrier->carrier.capacity = c_capacity;
-    carrier->carrier.capacity = c_capacity;
+    carrier->carrier.free = c_free;
     return carrier;
 fail:
-    jpeg_image_close(&image);
+    jpeg_image_close(&carrier->jpeg_image);
+    free(carrier->values);
     free(carrier);
     return NULL;
 }
