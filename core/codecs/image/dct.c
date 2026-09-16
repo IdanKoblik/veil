@@ -77,12 +77,12 @@ static unsigned char c_read(Carrier *carrier, size_t slot) {
     return (unsigned char)(image->values[slot] & 1);
 }
 
-static int c_capacity(Carrier *carrier) {
+static size_t c_capacity(Carrier *carrier) {
     if (!carrier)
-        return -1;
+        return 0;
 
     const struct DctCarrier *image = (struct DctCarrier *)carrier;
-    return (int)image->slots;
+    return image->slots;
 }
 
 static int c_save(Carrier *carrier, const char *output) {

@@ -18,6 +18,11 @@ int scatter_init(
     if (!encrypted)
         return 0;
 
+    if (capacity > SIZE_MAX / sizeof(*scatter->slots)) {
+        ERROR("Carrier has too many slots to scatter (%zu)", capacity);
+        return -1;
+    }
+
     scatter->slots = malloc(capacity * sizeof(*scatter->slots));
     if (!scatter->slots) {
         ERROR("Failed to allocate %zu scatter slots", capacity);

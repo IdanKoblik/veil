@@ -63,12 +63,12 @@ static unsigned char c_read(Carrier *carrier, size_t slot) {
     return pixel & 1;
 }
 
-static int c_capacity(Carrier *carrier) {
+static size_t c_capacity(Carrier *carrier) {
     if (!carrier)
-        return -1;
+        return 0;
 
     const struct LsbCarrier *image = (struct LsbCarrier *)carrier;
-    return (int)image->slots;
+    return image->slots;
 }
 
 static int c_save(Carrier *carrier, const char *output) {
@@ -120,7 +120,8 @@ struct LsbCarrier *lsb_carrier_init(const char *target) {
     carrier->channels = (size_t)channels;
     carrier->height = (size_t)height;
     carrier->width = (size_t)width;
-    carrier->slots = width * height * carrier->colors * sizeof(*raw);
+    // Widened before multiplying, int width * height alone overflows on large images.
+    carrier->slots = (size_t)width * (size_t)height * carrier->colors;
 
     DEBUG("LSB carrier: %dx%d, %zu color channels, %zu slots", width, height, carrier->colors, carrier->slots);
 

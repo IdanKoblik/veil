@@ -21,9 +21,10 @@ static int derive_keys(const char *passphrase, const unsigned char *salt, unsign
 }
 
 static int write_bytes(Carrier *carrier, const unsigned char *bytes, size_t len, const size_t *slots, size_t first_slot) {
+    // Least significant bit first, the order analysis/stream.c rebuilds bytes in.
     size_t n = 0;
     for (size_t i = 0; i < len; i++) {
-        for (int bit = 7; bit >= 0; bit--) {
+        for (int bit = 0; bit < 8; bit++) {
             const unsigned char value = (bytes[i] >> bit) & 1;
             const size_t slot = slots ? slots[n] : first_slot + n;
             if (carrier->write(carrier, slot, value) < 0)
@@ -40,7 +41,7 @@ static int read_bytes(Carrier *carrier, unsigned char *bytes, size_t len, const 
     size_t n = 0;
     for (size_t i = 0; i < len; i++) {
         unsigned char byte = 0;
-        for (int bit = 7; bit >= 0; bit--) {
+        for (int bit = 0; bit < 8; bit++) {
             const size_t slot = slots ? slots[n] : first_slot + n;
             const unsigned char value = carrier->read(carrier, slot);
             if (value > 1)
@@ -94,16 +95,16 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
         container->header_bits = CONTAINER_SEALED_BYTES * 8;
     }
 
-    const int capacity = carrier->capacity(carrier);
-    if (capacity < 0 || (size_t)capacity < container->preamble_bits) {
+    const size_t capacity = carrier->capacity(carrier);
+    if (capacity < container->preamble_bits) {
         ERROR("The carrier is too small to hold a container (%s)", target);
         goto fail;
     }
 
-    DEBUG("Container over %s: %d slots, %s", target, capacity, encrypted ? "encrypted" : "in the clear");
+    DEBUG("Container over %s: %zu slots, %s", target, capacity, encrypted ? "encrypted" : "in the clear");
 
     // The preamble sits at fixed slots because the decoder has to read the salt before it holds any key.
-    const size_t scatter_capacity = (size_t)capacity - container->preamble_bits;
+    const size_t scatter_capacity = capacity - container->preamble_bits;
     if (!encrypted) {
         if (scatter_init(&container->scatter, scatter_capacity, 0, NULL, NULL) < 0)
             goto fail;
@@ -210,8 +211,8 @@ int container_read_header(struct Container *container) {
         return -1;
 
     Carrier *carrier = container->carrier;
-    const int capacity = carrier->capacity(carrier);
-    if (capacity < 0 || (size_t)capacity < CONTAINER_PREAMBLE_BYTES * 8) {
+    const size_t capacity = carrier->capacity(carrier);
+    if (capacity < CONTAINER_PREAMBLE_BYTES * 8) {
         ERROR("The carrier is too small to hold a container (%s)", container->target);
         return -1;
     }
@@ -257,7 +258,7 @@ int container_read_header(struct Container *container) {
         header_bits = CONTAINER_SEALED_BYTES * 8;
     }
 
-    if ((size_t)capacity < preamble_bits) {
+    if (capacity < preamble_bits) {
         ERROR("The carrier is too small to hold an encrypted container (%s)", container->target);
         return -1;
     }
@@ -282,7 +283,7 @@ int container_read_header(struct Container *container) {
     }
 
     scatter_clear(&container->scatter);
-    const size_t scatter_capacity = (size_t)capacity - preamble_bits;
+    const size_t scatter_capacity = capacity - preamble_bits;
 
     int rc;
     if (encrypted) {
@@ -346,7 +347,7 @@ int container_encode_chunk(struct Container *container, const unsigned char *buf
         return -1;
 
     for (size_t i = 0; i < buffer_len; i++) {
-        for (int bit = 7; bit >= 0; bit--) {
+        for (int bit = 0; bit < 8; bit++) {
             const unsigned char value = (buffer[i] >> bit) & 1;
             size_t slot = scatter_next(&container->scatter);
             if (slot == SIZE_MAX) {
@@ -376,7 +377,7 @@ int container_decode_chunk(struct Container *container, unsigned char **buffer, 
 
     for (size_t i = 0; i < buffer_len; i++) {
         unsigned char byte = 0;
-        for (int bit = 7; bit >= 0; bit--) {
+        for (int bit = 0; bit < 8; bit++) {
             const size_t slot = scatter_next(&container->scatter);
             if (slot == SIZE_MAX) {
                 ERROR("Ran past the end of the carrier while decoding");
