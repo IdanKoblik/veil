@@ -6,6 +6,7 @@ coverage/*
 compile_commands.json
 CMakeUserPresets.json
 *.AppImage
+core/version.h
 .idea/*
 
 # Python

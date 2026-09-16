@@ -1,3 +1,18 @@
+find_package(Git QUIET)
+
+set(VEIL_VERSION_ARGS
+    -DGIT_EXECUTABLE=${GIT_EXECUTABLE}
+    -DVEIL_SOURCE_DIR=${PROJECT_SOURCE_DIR}
+    -P "${PROJECT_SOURCE_DIR}/cmake/version.cmake"
+)
+
+execute_process(COMMAND "${CMAKE_COMMAND}" ${VEIL_VERSION_ARGS})
+add_custom_target(veil_version
+    COMMAND "${CMAKE_COMMAND}" ${VEIL_VERSION_ARGS}
+    BYPRODUCTS "${CMAKE_CURRENT_SOURCE_DIR}/version.h"
+    COMMENT "Updating core/version.h"
+)
+
 file(GLOB_RECURSE VEIL_CORE_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 file(GLOB_RECURSE VEIL_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/*.h")
 
@@ -104,6 +119,7 @@ add_library(veil_core STATIC
     ${VEIL_CORE_HEADERS}
 )
 add_library(veil::core ALIAS veil_core)
+add_dependencies(veil_core veil_version)
 
 set_target_properties(veil_core PROPERTIES
     OUTPUT_NAME veil

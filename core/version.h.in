@@ -1,0 +1,3 @@
+#pragma once
+
+#define VEIL_VERSION "@VEIL_VERSION@"

@@ -1,13 +1,13 @@
 #include "cmd/command.h"
+#include "flag.h"
 #include "src/usage.h"
 #include <sodium.h>
 #include <stddef.h>
 #include <stdio.h>
-#include <veil/log.h>
-
-#include "flag.h"
-
 #include <sys/resource.h>
+#include <veil/log.h>
+#include <veil/version.h>
+
 #if defined(__linux__)
 #include <sys/prctl.h>
 #endif
@@ -29,11 +29,18 @@ int main(int argc, char *argv[]) {
         return 1;
     }
 
-    if (argc > 1 && strcmp(argv[1], "--verbose") == 0) {
-        verbose = 1;
-        argv[1] = argv[0];
-        argc--;
-        argv++;
+    if (argc > 1) {
+        if (strcmp(argv[1], "--version") == 0) {
+            printf("Veil: %s\n", VEIL_VERSION);
+            return 0;
+        }
+
+        if (strcmp(argv[1], "--verbose") == 0) {
+            verbose = 1;
+            argv[1] = argv[0];
+            argc--;
+            argv++;
+        }
     }
 
     harden_process();

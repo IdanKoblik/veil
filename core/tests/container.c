@@ -128,7 +128,7 @@ TEST container_lays_out_a_clear_header_in_order(void) {
     for (size_t i = 0; i < VEIL_MAGIC_LEN; i++)
         ASSERT_EQ((unsigned char)VEIL_MAGIC[i], read_byte(carrier, i));
 
-    ASSERT_EQ(VEIL_VERSION, read_byte(carrier, 4));
+    ASSERT_EQ(VEIL_CONTAINER_VERSION, read_byte(carrier, 4));
     ASSERT_EQ(0, read_byte(carrier, 5));
 
     uint64_t len = 0;
@@ -163,7 +163,7 @@ TEST container_leaves_its_preamble_readable_when_encrypted(void) {
     for (size_t i = 0; i < VEIL_MAGIC_LEN; i++)
         ASSERT_EQ((unsigned char)VEIL_MAGIC[i], read_byte(carrier, i));
 
-    ASSERT_EQ(VEIL_VERSION, read_byte(carrier, 4));
+    ASSERT_EQ(VEIL_CONTAINER_VERSION, read_byte(carrier, 4));
     ASSERT_EQ(VEIL_FLAG_ENCRYPTED, read_byte(carrier, 5));
 
     carrier->free(carrier);

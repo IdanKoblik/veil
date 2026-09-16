@@ -11,7 +11,7 @@ extern "C" {
 
 #define VEIL_MAGIC "VEIL"
 #define VEIL_MAGIC_LEN (sizeof(VEIL_MAGIC) - 1)
-#define VEIL_VERSION 2
+#define VEIL_CONTAINER_VERSION 2
 
 #define VEIL_FLAG_ENCRYPTED 0x01
 
