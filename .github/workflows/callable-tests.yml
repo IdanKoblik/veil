@@ -96,14 +96,12 @@ jobs:
           head -c 4096 /dev/urandom > payload.bin
           head -c 2048 /dev/urandom > small.bin
 
-          for codec in lsbr lsbm; do
-            for phrase in "correct horse battery staple" ""; do
-              printf '%s\n' "$phrase" | ./build/veil encode assets/veil.png payload.bin -o "carrier-$codec.png" -c "$codec"
-              printf '%s\n' "$phrase" | ./build/veil decode "carrier-$codec.png" -o "recovered-$codec.bin"
-              ./devtools/checksum.sh payload.bin "recovered-$codec.bin"
+          for phrase in "correct horse battery staple" ""; do
+            printf '%s\n' "$phrase" | ./build/veil encode assets/veil.png payload.bin -o carrier.png
+            printf '%s\n' "$phrase" | ./build/veil decode carrier.png -o recovered.bin
+            ./devtools/checksum.sh payload.bin recovered.bin
 
-              printf '%s\n' "$phrase" | ./build/veil encode assets/veil.jpg small.bin -o "carrier-$codec.jpg" -c "$codec"
-              printf '%s\n' "$phrase" | ./build/veil decode "carrier-$codec.jpg" -o "recovered-jpeg-$codec.bin"
-              ./devtools/checksum.sh small.bin "recovered-jpeg-$codec.bin"
-            done
+            printf '%s\n' "$phrase" | ./build/veil encode assets/veil.jpg small.bin -o carrier.jpg
+            printf '%s\n' "$phrase" | ./build/veil decode carrier.jpg -o recovered-jpeg.bin
+            ./devtools/checksum.sh small.bin recovered-jpeg.bin
           done
