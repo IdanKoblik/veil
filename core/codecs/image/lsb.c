@@ -1,6 +1,7 @@
 #include "lsb.h"
 #include <sodium/randombytes.h>
 #include "stb_image.h"
+#include "stb_image_write.h"
 #include <veil/log.h>
 
 static size_t color_channels(const size_t channels) {
@@ -70,6 +71,22 @@ static int c_capacity(Carrier *carrier) {
     return (int)image->slots;
 }
 
+static int c_save(Carrier *carrier, const char *output) {
+    if (!carrier || !output)
+        return -1;
+
+    const struct LsbCarrier *image = (struct LsbCarrier *)carrier;
+
+    const int stride = (int)(image->width * image->channels);
+    if (!stbi_write_png(output, (int)image->width, (int)image->height, (int)image->channels, image->pixels, stride)) {
+        ERROR("Failed to write the image (%s)", output);
+        return -1;
+    }
+
+    DEBUG("Wrote the LSB carrier into %s", output);
+    return 0;
+}
+
 static int c_free(Carrier *carrier) {
     if (!carrier)
         return -1;
@@ -110,6 +127,7 @@ struct LsbCarrier *lsb_carrier_init(const char *target) {
     carrier->carrier.write = c_write;
     carrier->carrier.read = c_read;
     carrier->carrier.capacity = c_capacity;
+    carrier->carrier.save = c_save;
     carrier->carrier.free = c_free;
     return carrier;
 }

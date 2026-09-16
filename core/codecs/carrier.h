@@ -10,6 +10,7 @@ typedef struct Carrier {
     int (*write)(struct Carrier* carrier, size_t slot, unsigned char bit);
     unsigned char (*read)(struct Carrier *carrier, size_t slot);
     int (*capacity)(struct Carrier *carrier);
+    int (*save)(struct Carrier *carrier, const char *output);
     int (*free)(struct Carrier* carrier);
 } Carrier;
 

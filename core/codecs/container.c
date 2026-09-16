@@ -57,16 +57,13 @@ static int read_bytes(Carrier *carrier, unsigned char *bytes, size_t len, const 
 }
 
 struct Container *container_init(const char *target, char passphrase[PASSPHRASE_MAX]) {
-    if (!target)
-        return NULL;
-
     struct Container *container = calloc(1, sizeof(*container));
     if (!container) {
         ERROR("Failed to allocate the container");
         return NULL;
     }
 
-    container->target = target;
+    container->target = target ? target : "pipe";
     Carrier *carrier = figure_carrier(target);
     if (!carrier)
         goto fail;
@@ -339,7 +336,7 @@ int container_read_header(struct Container *container) {
 
     DEBUG("Found a container version %u, %s, holding %llu bytes", header.version, encrypted ? "encrypted" : "in the clear", (unsigned long long)payload_len);
 
-    header.payload_len = (size_t)payload_len;
+    header.payload_len = payload_len;
     container->header = header;
     return 0;
 }

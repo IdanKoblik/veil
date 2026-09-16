@@ -23,6 +23,10 @@ static void coefficient_collect(JCOEF *coefficient, size_t slot, void *ctx) {
     ((JCOEF *)ctx)[slot] = *coefficient;
 }
 
+static void coefficient_store(JCOEF *coefficient, size_t slot, void *ctx) {
+    *coefficient = ((const JCOEF *)ctx)[slot];
+}
+
 static int coefficients_load(struct JpegImage *image, struct DctCarrier *carrier) {
     carrier->slots = jpeg_walk_coefficients(image, NULL, NULL);
     if (carrier->slots == 0) {
@@ -81,6 +85,26 @@ static int c_capacity(Carrier *carrier) {
     return (int)image->slots;
 }
 
+static int c_save(Carrier *carrier, const char *output) {
+    if (!carrier || !output)
+        return -1;
+
+    struct DctCarrier *image = (struct DctCarrier *)carrier;
+
+    if (jpeg_walk_coefficients(&image->jpeg_image, coefficient_store, image->values) != image->slots) {
+        ERROR("Failed to store the DCT coefficients back into the image");
+        return -1;
+    }
+
+    if (jpeg_image_write(&image->jpeg_image, output) < 0) {
+        ERROR("Failed to write the image (%s)", output);
+        return -1;
+    }
+
+    DEBUG("Wrote the DCT carrier into %s", output);
+    return 0;
+}
+
 static int c_free(Carrier *carrier) {
     if (!carrier)
         return -1;
@@ -113,6 +137,7 @@ struct DctCarrier *dct_carrier_init(const char *target) {
     carrier->carrier.write = c_write;
     carrier->carrier.read = c_read;
     carrier->carrier.capacity = c_capacity;
+    carrier->carrier.save = c_save;
     carrier->carrier.free = c_free;
     return carrier;
 fail:
