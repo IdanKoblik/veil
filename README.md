@@ -17,16 +17,45 @@ The project is designed around a modular core that separates the steganography
 logic from the carrier format. This makes it possible to support different
 media formats and hiding techniques without coupling them to the CLI.
 
-## Download
+## Install
 
-Prebuilt `veil` binaries are published on the
+Prebuilt `veil` binaries for `x86_64` and `aarch64` Linux are published on the
 [Releases](https://github.com/IdanKoblik/veil/releases) page.
 
+**Install script:**
+
+Downloads the release binary and man page, verifies them against
+`checksums.txt` and installs them under `PREFIX` (default `/usr/local`):
 ```sh
-# Grab the latest release binary
-curl -L -o baguette https://github.com/IdanKoblik/veil/releases/latest/download/veil
-chmod +x veil-{}
-./veil-{}
+curl -fsSL https://raw.githubusercontent.com/IdanKoblik/veil/main/devtools/install.sh | bash
+```
+
+Pin a version or change the install location with `VERSION` and `PREFIX`:
+```sh
+curl -fsSL https://raw.githubusercontent.com/IdanKoblik/veil/main/devtools/install.sh | VERSION=1.0.1 PREFIX=~/.local bash
+```
+
+To uninstall (use the same `PREFIX` you installed with):
+```sh
+curl -fsSL https://raw.githubusercontent.com/IdanKoblik/veil/main/devtools/uninstall.sh | bash
+```
+
+**Arch Linux:**
+
+A `PKGBUILD` is provided under `packaging/arch`:
+```sh
+git clone https://github.com/IdanKoblik/veil.git
+cd veil/packaging/arch
+makepkg -si
+```
+
+**AppImage (GUI):**
+
+`veil-gui` can be packaged as an AppImage. The script requires `cmake`, `curl`
+and ImageMagick (`magick`), and downloads `linuxdeploy` on first run:
+```sh
+./packaging/build_appimage.sh
+./Veil-*.AppImage
 ```
 
 ## Build from source
@@ -37,7 +66,7 @@ git clone https://github.com/IdanKoblik/veil.git
 cd veil
 ```
 
-** Configure and build:**
+**Configure and build:**
 ```sh
 cmake --preset dev
 cmake --build --preset dev
