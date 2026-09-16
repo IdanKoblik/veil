@@ -21,8 +21,8 @@ const call = (name, types, args) => {
   return JSON.parse(text)
 }
 
-const encode = (carrier, secret, output, codec, passphrase) =>
-  call('veil_encode', ['string', 'string', 'string', 'string', 'string'], [carrier, secret, output, codec, passphrase])
+const encode = (carrier, secret, output, passphrase) =>
+  call('veil_encode', ['string', 'string', 'string', 'string'], [carrier, secret, output, passphrase])
 
 const decode = (target, output, passphrase) =>
   call('veil_decode', ['string', 'string', 'string'], [target, output, passphrase])
@@ -39,7 +39,7 @@ const secret = Buffer.from('the quick brown fox jumps over the lazy dog\n'.repea
 
 for (const [carrier, codec, passphrase] of [
   ['veil.png', 'lsbm', ''],
-  ['veil.png', 'lsbr', 'correct horse battery staple'],
+  ['veil.png', 'lsbm', 'correct horse battery staple'],
   ['veil.jpg', 'dct', ''],
   ['veil.jpg', 'dct', 'correct horse battery staple'],
 ]) {
@@ -49,11 +49,12 @@ for (const [carrier, codec, passphrase] of [
   Module.FS.writeFile('/work/carrier', readFileSync(join(root, 'assets', carrier)))
   Module.FS.writeFile('/work/secret', secret)
 
-  const encoded = encode('/work/carrier', '/work/secret', '/work/stego', codec, passphrase)
+  const encoded = encode('/work/carrier', '/work/secret', '/work/stego', passphrase)
   check(`${label}: encode`, encoded?.ok === true, encoded?.ok ? '' : encoded?.error ?? log.join(' | '))
   if (!encoded?.ok) continue
 
   check(`${label}: encode reports encryption`, encoded.encrypted === Boolean(passphrase))
+  check(`${label}: encode reports the codec`, encoded.codec === codec)
 
   const untouched = decode('/work/carrier', '/work/out', passphrase)
   check(`${label}: decode of the untouched carrier fails`, untouched?.ok === false)
@@ -74,7 +75,7 @@ for (const [carrier, codec, passphrase] of [
 log.length = 0
 Module.FS.writeFile('/work/junk', Buffer.from('not an image at all'))
 Module.FS.writeFile('/work/secret', secret)
-const junk = encode('/work/junk', '/work/secret', '/work/stego', 'lsbm', '')
+const junk = encode('/work/junk', '/work/secret', '/work/stego', '')
 check('a non-image is refused', junk?.ok === false)
 
 console.log(failures ? `\n${failures} failed` : '\nall passed')

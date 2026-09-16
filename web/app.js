@@ -14,8 +14,6 @@ const els = {
     hide: {
         carrier: $('hide-carrier'),
         payload: $('hide-payload'),
-        codec: $('hide-codec'),
-        codecHint: $('hide-codec-hint'),
         pass: $('hide-pass'),
         go: $('hide-go'),
         result: $('hide-result'),
@@ -276,30 +274,12 @@ for (const entry of panels) {
 
 const isJpeg = (file) => file && /^image\/jpe?g$/.test(file.type);
 
-/*
- * The core forces DCT on a JPEG carrier and rejects DCT on a PNG, so mirror
- * that in the form instead of letting the user pick a losing combination.
- */
-function syncCodec() {
-    const file = els.hide.carrier.files[0];
-    const jpeg = isJpeg(file);
-
-    els.hide.codec.disabled = jpeg;
-    if (jpeg) els.hide.codec.value = 'dct';
-    else if (els.hide.codec.value === 'dct') els.hide.codec.value = 'lsbm';
-
-    els.hide.codecHint.textContent = jpeg
-        ? 'JPEG carrier: DCT is the only option.'
-        : 'LSB codecs need a PNG carrier; JPEG always uses DCT.';
-}
-
 function syncHide() {
     els.hide.go.disabled = !(els.hide.carrier.files[0] && els.hide.payload.files[0]);
 }
 
 els.hide.carrier.addEventListener('change', () => {
     showPreview(els.hide.carrier.files[0] ?? null);
-    syncCodec();
     syncHide();
 });
 
@@ -326,8 +306,8 @@ els.hide.go.addEventListener('click', async () => {
 
         const result = call(
             'veil_encode',
-            ['string', 'string', 'string', 'string', 'string'],
-            [target, data, output, els.hide.codec.value, els.hide.pass.value],
+            ['string', 'string', 'string', 'string'],
+            [target, data, output, els.hide.pass.value],
         );
 
         if (!result.ok) {
@@ -343,7 +323,7 @@ els.hide.go.addEventListener('click', async () => {
             meta: human(bytes.length),
             facts: [
                 ['payload', human(result.bytes)],
-                ['codec', els.hide.codec.value],
+                ['codec', result.codec],
                 ['encrypted', result.encrypted ? 'yes' : 'no'],
             ],
             bytes,

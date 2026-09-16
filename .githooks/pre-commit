@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+
+./devtools/format.sh
+
+if [ $? -ne 0 ]; then
+    echo "Formatting failed."
+    exit 1
+fi
+
+git add -u
+
+exit 0
