@@ -93,7 +93,6 @@ EMSCRIPTEN_KEEPALIVE char *veil_encode(const char *target, const char *data_file
     cJSON_AddBoolToObject(root, "ok", 1);
     cJSON_AddStringToObject(root, "output", output);
     cJSON_AddNumberToObject(root, "bytes", (double)data_len);
-    cJSON_AddStringToObject(root, "codec", type == TYPE_JPEG_IMAGE ? "dct" : "lsbm");
     cJSON_AddBoolToObject(root, "encrypted", encrypted);
 
     return json_take(root);

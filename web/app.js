@@ -323,7 +323,6 @@ els.hide.go.addEventListener('click', async () => {
             meta: human(bytes.length),
             facts: [
                 ['payload', human(result.bytes)],
-                ['codec', result.codec],
                 ['encrypted', result.encrypted ? 'yes' : 'no'],
             ],
             bytes,

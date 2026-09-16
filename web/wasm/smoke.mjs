@@ -37,13 +37,13 @@ const check = (label, ok, detail = '') => {
 
 const secret = Buffer.from('the quick brown fox jumps over the lazy dog\n'.repeat(24))
 
-for (const [carrier, codec, passphrase] of [
-  ['veil.png', 'lsbm', ''],
-  ['veil.png', 'lsbm', 'correct horse battery staple'],
-  ['veil.jpg', 'dct', ''],
-  ['veil.jpg', 'dct', 'correct horse battery staple'],
+for (const [carrier, passphrase] of [
+  ['veil.png', ''],
+  ['veil.png', 'correct horse battery staple'],
+  ['veil.jpg', ''],
+  ['veil.jpg', 'correct horse battery staple'],
 ]) {
-  const label = `${carrier} / ${codec} / ${passphrase ? 'encrypted' : 'plain'}`
+  const label = `${carrier} / ${passphrase ? 'encrypted' : 'plain'}`
   log.length = 0
 
   Module.FS.writeFile('/work/carrier', readFileSync(join(root, 'assets', carrier)))
@@ -54,7 +54,6 @@ for (const [carrier, codec, passphrase] of [
   if (!encoded?.ok) continue
 
   check(`${label}: encode reports encryption`, encoded.encrypted === Boolean(passphrase))
-  check(`${label}: encode reports the codec`, encoded.codec === codec)
 
   const untouched = decode('/work/carrier', '/work/out', passphrase)
   check(`${label}: decode of the untouched carrier fails`, untouched?.ok === false)
