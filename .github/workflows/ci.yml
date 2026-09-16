@@ -148,6 +148,11 @@ jobs:
             exit 1
           fi
 
+          if [ "$version" != "$(cat VERSION)" ]; then
+            echo "::error::Releasing $version but VERSION says $(cat VERSION), bump it first"
+            exit 1
+          fi
+
           tag="v$version"
 
           if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
@@ -182,6 +187,11 @@ jobs:
         with:
           path: dist
           merge-multiple: true
+
+      - name: Write man page
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: sed "s/@PROJECT_VERSION@/$VERSION/g" man/veil.1.in > dist/veil.1
 
       # One checksums.txt over every asset, rather than a loose .sha256 beside
       # each one, so `sha256sum -c checksums.txt` verifies the whole release.
@@ -253,9 +263,10 @@ jobs:
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
 
           # Loose assets only: veil and veil-gui per architecture (both matched by
-          # dist/veil-*), libveil.a to link against, and the checksum list.
+          # dist/veil-*), libveil.a to link against, the man page and the checksum list.
           gh release create "$TAG" "${args[@]}" \
             dist/veil-* \
             dist/libveil-*.a \
+            dist/veil.1 \
             dist/checksums.txt
           echo "Published $TAG" >> "$GITHUB_STEP_SUMMARY"

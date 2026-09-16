@@ -5,6 +5,7 @@ coverage/*
 /veil
 compile_commands.json
 CMakeUserPresets.json
+*.AppImage
 .idea/*
 
 # Python

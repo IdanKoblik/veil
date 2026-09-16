@@ -50,6 +50,8 @@ if(VEIL_LINKER_SCRIPT)
 endif()
 
 install(TARGETS veil RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}")
+configure_file("${PROJECT_SOURCE_DIR}/man/veil.1.in" "${CMAKE_CURRENT_BINARY_DIR}/veil.1" @ONLY)
+install(FILES "${CMAKE_CURRENT_BINARY_DIR}/veil.1" DESTINATION "${CMAKE_INSTALL_MANDIR}/man1")
 
 if(VEIL_BUILD_TESTS)
     add_subdirectory(tests)

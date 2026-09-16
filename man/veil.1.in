@@ -1,0 +1,121 @@
+.TH VEIL 1 "September 2026" "veil @PROJECT_VERSION@" "User Commands"
+.SH NAME
+veil \- general purpose steganography toolkit
+.SH SYNOPSIS
+.B veil
+.RB [ \-\-verbose ]
+.I subcommand
+.RI [ arguments ]
+.PP
+.B veil encode
+.I target
+.I data
+.RB [ \-o
+.IR output ]
+.RB [ \-verify ]
+.PP
+.B veil decode
+.I target
+.RB [ \-o
+.IR output ]
+.PP
+.B veil help
+.SH DESCRIPTION
+.B veil
+hides arbitrary data inside a carrier file and recovers it again.
+PNG carriers store the data in the least significant bits of the pixels,
+JPEG carriers store it in the DCT coefficients.
+.PP
+Both
+.B encode
+and
+.B decode
+prompt for a passphrase.
+When one is given the payload is encrypted before it is embedded, and the
+passphrase also seeds where in the carrier the payload is placed.
+Leave the prompt empty to store the data unencrypted.
+The same passphrase must be given to decode it.
+.SH OPTIONS
+.TP
+.B \-\-verbose
+Print debug output.
+Must come before the subcommand.
+.SH COMMANDS
+.TP
+.BI "encode " "target data"
+Hide the contents of
+.I data
+inside the PNG or JPEG image
+.I target
+and write the result to a new file.
+The target itself is left untouched.
+If
+.I data
+is
+.BR \- ,
+the data is read from standard input and the passphrase is read from
+.IR /dev/tty .
+.RS
+.TP
+.BI \-o " output"
+Where to write the carrier holding the data.
+Defaults to
+.IR output.bin .
+.TP
+.B \-verify
+Decode the written file again and check it holds the same data.
+.RE
+.TP
+.BI "decode " target
+Recover the data hidden inside
+.I target
+and write it to a file.
+The passphrase is read from standard input.
+.RS
+.TP
+.BI \-o " output"
+Where to write the recovered data, or
+.B \-
+for standard output.
+Defaults to
+.IR output.bin .
+Decoding a file into itself is refused.
+.RE
+.TP
+.B help
+List the available subcommands.
+.SH EXIT STATUS
+.TP
+.B 0
+Success.
+.TP
+.B 1
+Bad usage, an unknown subcommand, or a failed encode or decode.
+.SH EXAMPLES
+Hide a file in an image:
+.PP
+.RS
+.EX
+veil encode photo.png secret.txt \-o photo\-out.png \-verify
+.EE
+.RE
+.PP
+Get it back:
+.PP
+.RS
+.EX
+veil decode photo\-out.png \-o secret.txt
+.EE
+.RE
+.PP
+Pipe data in and out:
+.PP
+.RS
+.EX
+tar c notes/ | veil encode photo.jpg \- \-o photo\-out.jpg
+veil decode photo\-out.jpg \-o \- | tar x
+.EE
+.RE
+.SH SEE ALSO
+.UR https://github.com/IdanKoblik/veil
+.UE
