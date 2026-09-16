@@ -1,15 +1,20 @@
 #pragma once
 
-#include "../codec.h"
+#include <sodium/randombytes.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "stb_image.h"
+#include "../carrier.h"
 
-#define LSB_FILTER 0xFE
+struct LsbCarrier {
+    Carrier carrier;
 
-extern const Codec LsbCodec;
+    unsigned char *pixels;
+    size_t slots;
 
-#ifdef __cplusplus
-}
-#endif
+    size_t colors;
+    size_t channels;
+    size_t height;
+    size_t width;
+};
+
+struct LsbCarrier *lsb_carrier_init(const char *target);

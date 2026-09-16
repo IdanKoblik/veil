@@ -1,18 +1,22 @@
-#include "codec.h"
-#include <string.h>
+#include "carrier.h"
+#include "../fs/file.h"
+#include "image/lsb.h"
 
-enum CodecType str_to_codec(const char *str) {
-    if (!str)
-        return CODEC_UNKNOWN;
+inline Carrier *figure_carrier(const char* target) {
+    if (!target)
+        return NULL;
 
-    if (strcmp(str, "lsbm") == 0)
-        return CODEC_LSB_MATCHING;
+    const enum FileType file_type = get_file_type(target);
+    switch (file_type) {
+    case TYPE_PNG_IMAGE:
+        {
+            struct LsbCarrier *lsb = lsb_carrier_init(target);
+            if (!lsb)
+                return NULL;
 
-    if (strcmp(str, "lsbr") == 0)
-        return CODEC_LSB_REPLACEMENT;
-
-    if (strcmp(str, "dct") == 0)
-        return CODEC_DCT;
-
-    return CODEC_UNKNOWN;
+            return &lsb->carrier;
+        }
+    default:
+        return NULL;
+    }
 }
