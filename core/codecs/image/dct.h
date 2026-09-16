@@ -1,6 +1,5 @@
 #pragma once
 
-#include <jmorecfg.h>
 #include <stddef.h>
 #include "../carrier.h"
 #include <veil/handlers/jpeg.h>
