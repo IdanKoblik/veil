@@ -5,6 +5,10 @@
 #include <veil/crypto/passphrase.h>
 #include "scatter.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #define VEIL_MAGIC "VEIL"
 #define VEIL_MAGIC_LEN (sizeof(VEIL_MAGIC) - 1)
 #define VEIL_VERSION 2
@@ -58,3 +62,7 @@ int container_read_header(struct Container *container);
 int container_encode_chunk(struct Container *container, const unsigned char *buffer, size_t buffer_len);
 int container_decode_chunk(struct Container *container, unsigned char **buffer, size_t buffer_len);
 void container_free(struct Container *container);
+
+#ifdef __cplusplus
+}
+#endif

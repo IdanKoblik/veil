@@ -1,4 +1,7 @@
 #include "lsb.h"
+#include <sodium/randombytes.h>
+#include "stb_image.h"
+#include <veil/log.h>
 
 static size_t color_channels(const size_t channels) {
     // Skip alpha channel
@@ -78,13 +81,19 @@ static int c_free(Carrier *carrier) {
 }
 
 struct LsbCarrier *lsb_carrier_init(const char *target) {
+    if (!target)
+        return NULL;
+
     int width, height, channels;
     unsigned char *raw = stbi_load(target, &width, &height, &channels, 0 /* ANY */);
-    if (!raw)
+    if (!raw) {
+        ERROR("Failed to load the image (%s): %s", target, stbi_failure_reason());
         return NULL;
+    }
 
     struct LsbCarrier *carrier = malloc(sizeof(*carrier));
     if (!carrier) {
+        ERROR("Failed to allocate the LSB carrier");
         stbi_image_free(raw);
         return NULL;
     }
@@ -95,6 +104,8 @@ struct LsbCarrier *lsb_carrier_init(const char *target) {
     carrier->height = (size_t)height;
     carrier->width = (size_t)width;
     carrier->slots = width * height * carrier->colors * sizeof(*raw);
+
+    DEBUG("LSB carrier: %dx%d, %zu color channels, %zu slots", width, height, carrier->colors, carrier->slots);
 
     carrier->carrier.write = c_write;
     carrier->carrier.read = c_read;

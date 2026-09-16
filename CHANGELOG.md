@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Lsb replacement is now **deprecated**, and cannot be selected as a codec.
+- LSB & DCT replacement is now **deprecated**, and cannot be selected as a codec.
 
 ## [1.0.0]
 

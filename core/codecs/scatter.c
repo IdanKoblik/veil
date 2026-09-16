@@ -1,6 +1,7 @@
 #include "scatter.h"
 
 #include <stdlib.h>
+#include <veil/log.h>
 
 int scatter_init(
     struct Scatter *scatter,
@@ -18,8 +19,10 @@ int scatter_init(
         return 0;
 
     scatter->slots = malloc(capacity * sizeof(*scatter->slots));
-    if (!scatter->slots)
+    if (!scatter->slots) {
+        ERROR("Failed to allocate %zu scatter slots", capacity);
         return -1;
+    }
 
     for (size_t i = 0; i < capacity; i++)
         scatter->slots[i] = i;

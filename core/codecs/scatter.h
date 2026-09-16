@@ -3,6 +3,10 @@
 #include <stddef.h>
 #include "../crypto/prng.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 struct Scatter {
     struct Prng prng;
 
@@ -23,3 +27,7 @@ int scatter_init(
 
 size_t scatter_next(struct Scatter *scatter);
 void scatter_clear(struct Scatter *scatter);
+
+#ifdef __cplusplus
+}
+#endif

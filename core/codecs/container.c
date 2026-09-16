@@ -61,8 +61,10 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
         return NULL;
 
     struct Container *container = calloc(1, sizeof(*container));
-    if (!container)
+    if (!container) {
+        ERROR("Failed to allocate the container");
         return NULL;
+    }
 
     container->target = target;
     Carrier *carrier = figure_carrier(target);
@@ -96,8 +98,12 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
     }
 
     const int capacity = carrier->capacity(carrier);
-    if (capacity < 0 || (size_t)capacity < container->preamble_bits)
+    if (capacity < 0 || (size_t)capacity < container->preamble_bits) {
+        ERROR("The carrier is too small to hold a container (%s)", target);
         goto fail;
+    }
+
+    DEBUG("Container over %s: %d slots, %s", target, capacity, encrypted ? "encrypted" : "in the clear");
 
     // The preamble sits at fixed slots because the decoder has to read the salt before it holds any key.
     const size_t scatter_capacity = (size_t)capacity - container->preamble_bits;
@@ -138,8 +144,10 @@ int container_reserve_header(struct Container *container) {
 
     for (size_t i = 0; i < container->header_bits; i++) {
         const size_t slot = scatter_next(&container->scatter);
-        if (slot == SIZE_MAX)
+        if (slot == SIZE_MAX) {
+            ERROR("The carrier has no room for the container header");
             return -1;
+        }
 
         container->header_slots[i] = slot + container->preamble_bits;
     }
@@ -170,8 +178,11 @@ int container_write_header(struct Container *container) {
         off += HEADER_NONCE_LEN;
     }
 
-    if (write_bytes(container->carrier, preamble, off, NULL, 0) < 0)
+    DEBUG("Writing the container header for a %zu byte payload", header->payload_len);
+    if (write_bytes(container->carrier, preamble, off, NULL, 0) < 0) {
+        ERROR("Failed to write the container preamble");
         return -1;
+    }
 
     unsigned char secret[CONTAINER_SECRET_BYTES];
 
@@ -191,6 +202,9 @@ int container_write_header(struct Container *container) {
     }
 
     sodium_memzero(secret, sizeof(secret));
+    if (rc < 0)
+        ERROR("Failed to write the container header");
+
     return rc;
 }
 
@@ -200,13 +214,17 @@ int container_read_header(struct Container *container) {
 
     Carrier *carrier = container->carrier;
     const int capacity = carrier->capacity(carrier);
-    if (capacity < 0 || (size_t)capacity < CONTAINER_PREAMBLE_BYTES * 8)
+    if (capacity < 0 || (size_t)capacity < CONTAINER_PREAMBLE_BYTES * 8) {
+        ERROR("The carrier is too small to hold a container (%s)", container->target);
         return -1;
+    }
 
     struct ContainerHeader header = {0};
     unsigned char preamble[CONTAINER_PREAMBLE_BYTES + CONTAINER_KDF_BYTES];
-    if (read_bytes(carrier, preamble, CONTAINER_PREAMBLE_BYTES, NULL, 0) < 0)
+    if (read_bytes(carrier, preamble, CONTAINER_PREAMBLE_BYTES, NULL, 0) < 0) {
+        ERROR("Failed to read the container preamble (%s)", container->target);
         return -1;
+    }
 
     size_t off = 0;
     memcpy(header.magic, preamble + off, VEIL_MAGIC_LEN);
@@ -242,13 +260,17 @@ int container_read_header(struct Container *container) {
         header_bits = CONTAINER_SEALED_BYTES * 8;
     }
 
-    if ((size_t)capacity < preamble_bits)
+    if ((size_t)capacity < preamble_bits) {
+        ERROR("The carrier is too small to hold an encrypted container (%s)", container->target);
         return -1;
+    }
 
     unsigned char prng_key[PRNG_KEYBYTES];
     if (encrypted) {
-        if (read_bytes(carrier, preamble + off, CONTAINER_KDF_BYTES, NULL, off * 8) < 0)
+        if (read_bytes(carrier, preamble + off, CONTAINER_KDF_BYTES, NULL, off * 8) < 0) {
+            ERROR("Failed to read the container salt and nonce (%s)", container->target);
             return -1;
+        }
 
         memcpy(header.salt, preamble + off, SALT_LEN);
         off += SALT_LEN;
@@ -284,10 +306,14 @@ int container_read_header(struct Container *container) {
     unsigned char secret[CONTAINER_SECRET_BYTES] = {0};
     if (!encrypted) {
         rc = read_bytes(carrier, secret, PAYLOAD_LEN_BYTES, container->header_slots, 0);
+        if (rc < 0)
+            ERROR("Failed to read the container header (%s)", container->target);
     } else {
         unsigned char sealed[CONTAINER_SEALED_BYTES];
         rc = read_bytes(carrier, sealed, sizeof(sealed), container->header_slots, 0);
-        if (rc == 0 && crypto_secretbox_open_easy(secret, sealed, sizeof(sealed), header.header_nonce, container->box_key) != 0) {
+        if (rc < 0)
+            ERROR("Failed to read the container header (%s)", container->target);
+        else if (crypto_secretbox_open_easy(secret, sealed, sizeof(sealed), header.header_nonce, container->box_key) != 0) {
             ERROR("Wrong passphrase or corrupted container header");
             rc = -1;
         }
@@ -311,6 +337,8 @@ int container_read_header(struct Container *container) {
         return -1;
     }
 
+    DEBUG("Found a container version %u, %s, holding %llu bytes", header.version, encrypted ? "encrypted" : "in the clear", (unsigned long long)payload_len);
+
     header.payload_len = (size_t)payload_len;
     container->header = header;
     return 0;
@@ -324,11 +352,15 @@ int container_encode_chunk(struct Container *container, const unsigned char *buf
         for (int bit = 7; bit >= 0; bit--) {
             const unsigned char value = (buffer[i] >> bit) & 1;
             size_t slot = scatter_next(&container->scatter);
-            if (slot == SIZE_MAX)
+            if (slot == SIZE_MAX) {
+                ERROR("The payload doesn't fit in the carrier");
                 return -1;
+            }
 
-            if (container->carrier->write(container->carrier, slot + container->preamble_bits, value) < 0)
+            if (container->carrier->write(container->carrier, slot + container->preamble_bits, value) < 0) {
+                ERROR("Failed to write carrier slot %zu", slot + container->preamble_bits);
                 return -1;
+            }
         }
     }
 
@@ -340,19 +372,25 @@ int container_decode_chunk(struct Container *container, unsigned char **buffer, 
         return -1;
 
     unsigned char *out = malloc(buffer_len ? buffer_len : 1);
-    if (!out)
+    if (!out) {
+        ERROR("Failed to allocate a %zu byte chunk", buffer_len);
         return -1;
+    }
 
     for (size_t i = 0; i < buffer_len; i++) {
         unsigned char byte = 0;
         for (int bit = 7; bit >= 0; bit--) {
             const size_t slot = scatter_next(&container->scatter);
-            if (slot == SIZE_MAX)
+            if (slot == SIZE_MAX) {
+                ERROR("Ran past the end of the carrier while decoding");
                 goto fail;
+            }
 
             const unsigned char value = container->carrier->read(container->carrier, slot + container->preamble_bits);
-            if (value > 1)
+            if (value > 1) {
+                ERROR("Failed to read carrier slot %zu", slot + container->preamble_bits);
                 goto fail;
+            }
 
             byte |= (unsigned char)(value << bit);
         }

@@ -1,9 +1,10 @@
 #pragma once
 
-#include <sodium/randombytes.h>
-
-#include "stb_image.h"
 #include "../carrier.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
 
 struct LsbCarrier {
     Carrier carrier;
@@ -18,3 +19,7 @@ struct LsbCarrier {
 };
 
 struct LsbCarrier *lsb_carrier_init(const char *target);
+
+#ifdef __cplusplus
+}
+#endif

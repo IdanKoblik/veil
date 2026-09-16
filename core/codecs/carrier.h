@@ -2,6 +2,10 @@
 
 #include <stddef.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct Carrier {
     int (*write)(struct Carrier* carrier, size_t slot, unsigned char bit);
     unsigned char (*read)(struct Carrier *carrier, size_t slot);
@@ -10,3 +14,7 @@ typedef struct Carrier {
 } Carrier;
 
 Carrier *figure_carrier(const char* target);
+
+#ifdef __cplusplus
+}
+#endif
