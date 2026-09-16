@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>baguette</h1>
+  <h1>Veil</h1>
 
   <img src="assets/logo.png" alt="veil" width="300">
 
