@@ -36,6 +36,26 @@ static int write_bytes(Carrier *carrier, const unsigned char *bytes, size_t len,
     return 0;
 }
 
+static int read_bytes(Carrier *carrier, unsigned char *bytes, size_t len, const size_t *slots, size_t first_slot) {
+    size_t n = 0;
+    for (size_t i = 0; i < len; i++) {
+        unsigned char byte = 0;
+        for (int bit = 7; bit >= 0; bit--) {
+            const size_t slot = slots ? slots[n] : first_slot + n;
+            const unsigned char value = carrier->read(carrier, slot);
+            if (value > 1)
+                return -1;
+
+            byte |= (unsigned char)(value << bit);
+            n++;
+        }
+
+        bytes[i] = byte;
+    }
+
+    return 0;
+}
+
 struct Container *container_init(const char *target, char passphrase[PASSPHRASE_MAX]) {
     if (!target)
         return NULL;
@@ -53,6 +73,9 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
 
     const int encrypted = passphrase && passphrase[0] != '\0';
     if (encrypted) {
+        if (sodium_mlock(container->passphrase, sizeof(container->passphrase)) != 0)
+            DEBUG("Could not lock the container passphrase, it may reach swap");
+
         strncpy(container->passphrase, passphrase, PASSPHRASE_MAX - 1);
         container->passphrase[PASSPHRASE_MAX - 1] = '\0';
     }
@@ -78,7 +101,6 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
 
     // The preamble sits at fixed slots because the decoder has to read the salt before it holds any key.
     const size_t scatter_capacity = (size_t)capacity - container->preamble_bits;
-
     if (!encrypted) {
         if (scatter_init(&container->scatter, scatter_capacity, 0, NULL, NULL) < 0)
             goto fail;
@@ -105,6 +127,7 @@ struct Container *container_init(const char *target, char passphrase[PASSPHRASE_
     return container;
 fail:
     sodium_memzero(container->box_key, sizeof(container->box_key));
+    passphrase_wipe(&container->passphrase);
     free(container);
     return NULL;
 }
@@ -171,6 +194,128 @@ int container_write_header(struct Container *container) {
     return rc;
 }
 
+int container_read_header(struct Container *container) {
+    if (!container || container->header_reserved)
+        return -1;
+
+    Carrier *carrier = container->carrier;
+    const int capacity = carrier->capacity(carrier);
+    if (capacity < 0 || (size_t)capacity < CONTAINER_PREAMBLE_BYTES * 8)
+        return -1;
+
+    struct ContainerHeader header = {0};
+    unsigned char preamble[CONTAINER_PREAMBLE_BYTES + CONTAINER_KDF_BYTES];
+    if (read_bytes(carrier, preamble, CONTAINER_PREAMBLE_BYTES, NULL, 0) < 0)
+        return -1;
+
+    size_t off = 0;
+    memcpy(header.magic, preamble + off, VEIL_MAGIC_LEN);
+    off += VEIL_MAGIC_LEN;
+    header.version = preamble[off++];
+    header.flags = preamble[off++];
+
+    if (memcmp(header.magic, VEIL_MAGIC, VEIL_MAGIC_LEN) != 0) {
+        DEBUG("No container found in %s", container->target);
+        return -1;
+    }
+
+    if (header.version != VEIL_VERSION) {
+        ERROR("Unsupported container version %u", header.version);
+        return -1;
+    }
+
+    if (header.flags & ~VEIL_FLAG_ENCRYPTED) {
+        ERROR("Unknown container flags 0x%02x", header.flags);
+        return -1;
+    }
+
+    const int encrypted = header.flags & VEIL_FLAG_ENCRYPTED;
+    if (encrypted && container->passphrase[0] == '\0') {
+        ERROR("Container is encrypted but no passphrase was given");
+        return -1;
+    }
+
+    size_t preamble_bits = CONTAINER_PREAMBLE_BYTES * 8;
+    size_t header_bits = PAYLOAD_LEN_BYTES * 8;
+    if (encrypted) {
+        preamble_bits += CONTAINER_KDF_BYTES * 8;
+        header_bits = CONTAINER_SEALED_BYTES * 8;
+    }
+
+    if ((size_t)capacity < preamble_bits)
+        return -1;
+
+    unsigned char prng_key[PRNG_KEYBYTES];
+    if (encrypted) {
+        if (read_bytes(carrier, preamble + off, CONTAINER_KDF_BYTES, NULL, off * 8) < 0)
+            return -1;
+
+        memcpy(header.salt, preamble + off, SALT_LEN);
+        off += SALT_LEN;
+        memcpy(header.header_nonce, preamble + off, HEADER_NONCE_LEN);
+
+        const int derived = derive_keys(container->passphrase, header.salt, container->box_key, prng_key);
+        passphrase_wipe(&container->passphrase);
+        if (derived < 0) {
+            sodium_memzero(prng_key, sizeof(prng_key));
+            return -1;
+        }
+    }
+
+    scatter_clear(&container->scatter);
+    const size_t scatter_capacity = (size_t)capacity - preamble_bits;
+
+    int rc;
+    if (encrypted) {
+        rc = scatter_init(&container->scatter, scatter_capacity, 1, prng_key, header.header_nonce);
+        sodium_memzero(prng_key, sizeof(prng_key));
+    } else {
+        rc = scatter_init(&container->scatter, scatter_capacity, 0, NULL, NULL);
+    }
+
+    if (rc < 0)
+        return -1;
+
+    container->preamble_bits = preamble_bits;
+    container->header_bits = header_bits;
+    if (container_reserve_header(container) < 0)
+        return -1;
+
+    unsigned char secret[CONTAINER_SECRET_BYTES] = {0};
+    if (!encrypted) {
+        rc = read_bytes(carrier, secret, PAYLOAD_LEN_BYTES, container->header_slots, 0);
+    } else {
+        unsigned char sealed[CONTAINER_SEALED_BYTES];
+        rc = read_bytes(carrier, sealed, sizeof(sealed), container->header_slots, 0);
+        if (rc == 0 && crypto_secretbox_open_easy(secret, sealed, sizeof(sealed), header.header_nonce, container->box_key) != 0) {
+            ERROR("Wrong passphrase or corrupted container header");
+            rc = -1;
+        }
+    }
+
+    if (rc < 0) {
+        sodium_memzero(secret, sizeof(secret));
+        return -1;
+    }
+
+    uint64_t payload_len = 0;
+    for (size_t i = 0; i < PAYLOAD_LEN_BYTES; i++)
+        payload_len |= (uint64_t)secret[i] << (i * 8);
+
+    memcpy(header.payload_nonce, secret + PAYLOAD_LEN_BYTES, PAYLOAD_NONCE_LEN);
+    sodium_memzero(secret, sizeof(secret));
+
+    const size_t remaining_bits = scatter_capacity - container->scatter.pos;
+    if (payload_len > remaining_bits / 8) {
+        ERROR("Container claims a %llu byte payload the carrier can't hold", (unsigned long long)payload_len);
+        return -1;
+    }
+
+    header.payload_len = (size_t)payload_len;
+    container->header = header;
+    return 0;
+}
+
 int container_encode_chunk(struct Container *container, const unsigned char *buffer, size_t buffer_len) {
     if (!container)
         return -1;
@@ -190,6 +335,38 @@ int container_encode_chunk(struct Container *container, const unsigned char *buf
     return 0;
 }
 
+int container_decode_chunk(struct Container *container, unsigned char **buffer, size_t buffer_len) {
+    if (!container || !buffer || !container->header_reserved)
+        return -1;
+
+    unsigned char *out = malloc(buffer_len ? buffer_len : 1);
+    if (!out)
+        return -1;
+
+    for (size_t i = 0; i < buffer_len; i++) {
+        unsigned char byte = 0;
+        for (int bit = 7; bit >= 0; bit--) {
+            const size_t slot = scatter_next(&container->scatter);
+            if (slot == SIZE_MAX)
+                goto fail;
+
+            const unsigned char value = container->carrier->read(container->carrier, slot + container->preamble_bits);
+            if (value > 1)
+                goto fail;
+
+            byte |= (unsigned char)(value << bit);
+        }
+
+        out[i] = byte;
+    }
+
+    *buffer = out;
+    return 0;
+fail:
+    free(out);
+    return -1;
+}
+
 void container_free(struct Container *container) {
     if (!container)
         return;
@@ -199,6 +376,7 @@ void container_free(struct Container *container) {
 
     scatter_clear(&container->scatter);
     sodium_memzero(container->box_key, sizeof(container->box_key));
+    passphrase_wipe(&container->passphrase);
 
     free(container);
 }
