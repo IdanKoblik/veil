@@ -9,7 +9,7 @@
 extern "C" {
 #endif
 
-#define VEIL_MAGIC "VEIL"
+#define VEIL_MAGIC "\x8f\x3a\xc1\x72\x4e\xa9\xd6\x05"
 #define VEIL_MAGIC_LEN (sizeof(VEIL_MAGIC) - 1)
 #define VEIL_CONTAINER_VERSION 3
 
