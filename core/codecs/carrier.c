@@ -2,7 +2,9 @@
 #include "../fs/file.h"
 #include "image/jpeg.h"
 #include "image/lossless.h"
+#ifdef VEIL_WITH_VIDEO
 #include "video/h264.h"
+#endif
 #include <sodium/randombytes.h>
 #include <veil/log.h>
 
@@ -48,6 +50,7 @@ Carrier *figure_carrier(const char *target) {
 
         return &jpeg->carrier;
     }
+#ifdef VEIL_WITH_VIDEO
     case TYPE_MP4_VIDEO: {
         struct H264Carrier *h264 = h264_carrier_init(target);
         if (!h264)
@@ -55,6 +58,7 @@ Carrier *figure_carrier(const char *target) {
 
         return &h264->carrier;
     }
+#endif
     default:
         ERROR("No carrier supports %s files (%s)", file_type_name(file_type), target);
         return NULL;

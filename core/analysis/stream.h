@@ -2,7 +2,9 @@
 
 #include <stddef.h>
 
+#ifdef VEIL_WITH_VIDEO
 #include "../codecs/video/h264.h"
+#endif
 #include "../fs/file.h"
 
 #ifdef __cplusplus
@@ -34,7 +36,9 @@ const char *stream_kind_name(enum StreamKind kind);
 int stream_kind_available(enum StreamKind kind, enum FileType type);
 
 int stream_load(const char *target, enum StreamKind kind, struct Stream *out);
+#ifdef VEIL_WITH_VIDEO
 int stream_take_h264(struct H264Carrier *carrier, struct Stream *out);
+#endif
 void stream_free(struct Stream *stream);
 
 int streams_construct(const char *target, struct StreamSet *set);

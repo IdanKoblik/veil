@@ -18,6 +18,10 @@ env:
     pkg-config
     libsodium-dev
     libjpeg-dev
+    libavformat-dev
+    libavcodec-dev
+    libavutil-dev
+    libswscale-dev
   # The X11 and GL headers raylib builds its bundled GLFW against. raylib
   # itself is fetched at configure time, so no GLFW package is installed.
   APT_GUI_PACKAGES: >-

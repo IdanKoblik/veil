@@ -150,6 +150,7 @@ TEST dct_carrier_keeps_its_bits_through_a_save(void) {
     PASS();
 }
 
+#ifdef VEIL_WITH_VIDEO
 TEST h264_carrier_keeps_its_bits_through_a_save(void) {
     char *video = create_test_mp4(32, 24, 5);
     if (!video)
@@ -163,6 +164,7 @@ TEST h264_carrier_keeps_its_bits_through_a_save(void) {
     CHECK_CALL(bits_survive_a_save(video));
     PASS();
 }
+#endif
 
 SUITE(carrier_suite) {
     RUN_TEST(carrier_counts_every_colour_sample_of_a_png);
@@ -171,5 +173,7 @@ SUITE(carrier_suite) {
     RUN_TEST(lsb_carrier_keeps_its_bits_through_a_save);
     RUN_TEST(lsb_carrier_leaves_alpha_alone);
     RUN_TEST(dct_carrier_keeps_its_bits_through_a_save);
+#ifdef VEIL_WITH_VIDEO
     RUN_TEST(h264_carrier_keeps_its_bits_through_a_save);
+#endif
 }

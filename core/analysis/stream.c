@@ -40,6 +40,7 @@ static int hex_load(const char *target, struct Stream *out) {
 }
 
 static int lsb_load(const char *target, struct Stream *out) {
+#ifdef VEIL_WITH_VIDEO
     if (is_video_file(get_file_type(target))) {
         struct H264Carrier *video = h264_carrier_init(target);
         if (!video)
@@ -49,6 +50,7 @@ static int lsb_load(const char *target, struct Stream *out) {
         video->carrier.free(&video->carrier);
         return rc;
     }
+#endif
 
     struct PixelBuffer pixels;
     if (pixels_load(target, &pixels) != 0)
@@ -154,7 +156,11 @@ int stream_kind_available(enum StreamKind kind, enum FileType type) {
     case STREAM_HEX:
         return type != TYPE_NOT_FOUND;
     case STREAM_LSB:
+#ifdef VEIL_WITH_VIDEO
         return is_image_file(type) || is_video_file(type);
+#else
+        return is_image_file(type);
+#endif
     case STREAM_DCT:
         return type == TYPE_JPEG_IMAGE;
     default:
@@ -182,6 +188,7 @@ int stream_load(const char *target, enum StreamKind kind, struct Stream *out) {
     }
 }
 
+#ifdef VEIL_WITH_VIDEO
 int stream_take_h264(struct H264Carrier *carrier, struct Stream *out) {
     if (!carrier || !out || !carrier->lsbs)
         return -1;
@@ -206,6 +213,7 @@ int stream_take_h264(struct H264Carrier *carrier, struct Stream *out) {
 
     return 0;
 }
+#endif
 
 void stream_free(struct Stream *stream) {
     if (!stream)

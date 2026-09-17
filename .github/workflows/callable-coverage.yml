@@ -13,6 +13,11 @@ env:
     pkg-config
     libsodium-dev
     libjpeg-dev
+    libavformat-dev
+    libavcodec-dev
+    libavutil-dev
+    libswscale-dev
+    ffmpeg
     libx11-dev
     libgl1-mesa-dev
     libxrandr-dev
