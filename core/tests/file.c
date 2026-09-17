@@ -73,11 +73,29 @@ TEST raw_data_round_trips_through_a_file(void) {
 
     unsigned char *got = NULL;
     size_t len = 0;
-    ASSERT_EQ(0, read_file_raw_data(path, &got, &len));
+    ASSERT_EQ(0, file_map_raw_data(path, &got, &len));
     ASSERT_EQ(sizeof(data), len);
     ASSERT_MEM_EQ(data, got, len);
 
-    free(got);
+    file_unmap_raw_data(got, len);
+    unlink(path);
+    free(path);
+    PASS();
+}
+
+TEST raw_data_maps_an_empty_file_as_nothing(void) {
+    char *path = create_temp_path();
+    ASSERT(path);
+
+    ASSERT_EQ(0, write_to_file_raw_data(path, NULL, 0));
+
+    unsigned char *got = NULL;
+    size_t len = 0;
+    ASSERT_EQ(0, file_map_raw_data(path, &got, &len));
+    ASSERT_EQ(0, len);
+    ASSERT_EQ(NULL, got);
+
+    file_unmap_raw_data(got, len);
     unlink(path);
     free(path);
     PASS();
@@ -87,7 +105,7 @@ TEST raw_data_wants_a_file_it_can_read(void) {
     unsigned char *got = NULL;
     size_t len = 0;
 
-    ASSERT(read_file_raw_data("/tmp/no_such_file_for_veil_tests", &got, &len) < 0);
+    ASSERT(file_map_raw_data("/tmp/no_such_file_for_veil_tests", &got, &len) < 0);
     ASSERT(write_to_file_raw_data("/tmp/no_such_dir_for_veil_tests/out", (const unsigned char *)"x", 1) < 0);
     PASS();
 }
@@ -98,5 +116,6 @@ SUITE(file_suite) {
     RUN_TEST(file_type_tells_missing_from_unknown);
     RUN_TEST(file_type_names_are_readable);
     RUN_TEST(raw_data_round_trips_through_a_file);
+    RUN_TEST(raw_data_maps_an_empty_file_as_nothing);
     RUN_TEST(raw_data_wants_a_file_it_can_read);
 }

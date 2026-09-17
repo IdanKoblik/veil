@@ -16,7 +16,8 @@ const char *file_type_name(enum FileType type);
 enum FileType detect_image_type(const char *target);
 enum FileType get_file_type(const char *target);
 
-int read_file_raw_data(const char *target, unsigned char **data, size_t *data_len);
+int file_map_raw_data(const char *target, unsigned char **data, size_t *data_len);
+void file_unmap_raw_data(unsigned char *data, size_t data_len);
 int write_to_file_raw_data(const char *target, const unsigned char *data, size_t data_len);
 
 #ifdef __cplusplus

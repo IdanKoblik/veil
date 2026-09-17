@@ -27,13 +27,14 @@ static int hex_load(const char *target, struct Stream *out) {
     unsigned char *bytes = NULL;
     size_t len = 0;
 
-    if (read_file_raw_data(target, &bytes, &len) != 0) {
+    if (file_map_raw_data(target, &bytes, &len) != 0) {
         ERROR("Failed to read the file (%s)", target);
         return -1;
     }
 
     out->bytes = bytes;
     out->len = len;
+    out->mapped = 1;
     out->slots = 0;
 
     return 0;
@@ -219,10 +220,15 @@ void stream_free(struct Stream *stream) {
     if (!stream)
         return;
 
-    free(stream->bytes);
+    // The hex stream is a mapping of the file itself; the LSB and DCT streams are built into allocations.
+    if (stream->mapped)
+        file_unmap_raw_data(stream->bytes, stream->len);
+    else
+        free(stream->bytes);
 
     stream->bytes = NULL;
     stream->len = 0;
+    stream->mapped = 0;
     stream->slots = 0;
 }
 

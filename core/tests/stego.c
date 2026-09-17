@@ -22,12 +22,12 @@ static enum greatest_test_res file_holds(const char *path, const unsigned char *
     unsigned char *got = NULL;
     size_t got_len = 0;
 
-    ASSERT_EQ(0, read_file_raw_data(path, &got, &got_len));
+    ASSERT_EQ(0, file_map_raw_data(path, &got, &got_len));
     ASSERT_EQ(len, got_len);
     if (len)
         ASSERT_MEM_EQ(want, got, len);
 
-    free(got);
+    file_unmap_raw_data(got, got_len);
     PASS();
 }
 

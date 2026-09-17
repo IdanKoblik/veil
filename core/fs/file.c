@@ -1,6 +1,10 @@
 #include "file.h"
+#include <fcntl.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/mman.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <veil/log.h>
 
@@ -113,39 +117,57 @@ enum FileType get_file_type(const char *target) {
     return TYPE_UNKNOWN;
 }
 
-int read_file_raw_data(const char *target, unsigned char **data, size_t *data_len) {
-    FILE *file = fopen(target, "rb");
-    if (!file)
+int file_map_raw_data(const char *target, unsigned char **data, size_t *data_len) {
+    if (!target || !data || !data_len)
         return -1;
 
-    if (fseek(file, 0, SEEK_END) != 0) {
-        fclose(file);
+    const int fd = open(target, O_RDONLY | O_CLOEXEC);
+    if (fd < 0)
         return -1;
-    }
 
-    long size = ftell(file);
-    if (size < 0) {
-        fclose(file);
+    struct stat info;
+    if (fstat(fd, &info) != 0 || !S_ISREG(info.st_mode)) {
+        close(fd);
         return -1;
     }
 
-    rewind(file);
+    // mmap refuses a zero length, and a caller walking 0 bytes never dereferences the pointer anyway.
+    if (info.st_size == 0) {
+        close(fd);
+        *data = NULL;
+        *data_len = 0;
+        return 0;
+    }
 
-    *data = malloc(size > 0 ? (size_t)size : 1);
-    if (!*data) {
-        fclose(file);
+    if ((uintmax_t)info.st_size > (uintmax_t)SIZE_MAX) {
+        ERROR("File is larger than this address space can map (%s)", target);
+        close(fd);
         return -1;
     }
 
-    *data_len = (size_t)size;
-    if (fread(*data, 1, *data_len, file) != *data_len) {
-        free(*data);
-        fclose(file);
+    const size_t len = (size_t)info.st_size;
+    void *mapped = mmap(NULL, len, PROT_READ, MAP_PRIVATE, fd, 0);
+    close(fd);
+
+    if (mapped == MAP_FAILED) {
+        ERROR("Failed to map the file (%s)", target);
         return -1;
     }
 
-    fclose(file);
+    // Callers page through these bytes as a viewer scrolls, so the default sequential readahead
+    // would fault in far more of the file than gets looked at.
+    posix_madvise(mapped, len, POSIX_MADV_RANDOM);
+
+    *data = mapped;
+    *data_len = len;
+
+    DEBUG("Mapped %zu bytes of %s", len, target);
     return 0;
+}
+
+void file_unmap_raw_data(unsigned char *data, size_t data_len) {
+    if (data && data_len)
+        munmap(data, data_len);
 }
 
 int write_to_file_raw_data(const char *target, const unsigned char *data, size_t data_len) {
