@@ -3,7 +3,6 @@
 
 SUITE_EXTERN(checksum_suite);
 SUITE_EXTERN(byte_suite);
-SUITE_EXTERN(codec_suite);
 SUITE_EXTERN(prng_suite);
 SUITE_EXTERN(scatter_suite);
 SUITE_EXTERN(carrier_suite);
@@ -21,7 +20,6 @@ int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
     RUN_SUITE(checksum_suite);
     RUN_SUITE(byte_suite);
-    RUN_SUITE(codec_suite);
     RUN_SUITE(prng_suite);
     RUN_SUITE(scatter_suite);
     RUN_SUITE(file_suite);

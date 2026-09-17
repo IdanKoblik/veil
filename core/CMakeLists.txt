@@ -114,6 +114,23 @@ if(NOT TARGET veil::jpeg)
     target_link_libraries(veil_jpeg INTERFACE JPEG::JPEG)
 endif()
 
+if(NOT TARGET veil::ffmpeg)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(VEIL_FFMPEG_PC QUIET IMPORTED_TARGET libavformat libavcodec libavutil)
+    endif()
+
+    if(NOT TARGET PkgConfig::VEIL_FFMPEG_PC)
+        message(FATAL_ERROR
+            "Could not find FFmpeg. Install it (Arch: ffmpeg, Debian: "
+            "libavformat-dev libavcodec-dev libavutil-dev, macOS: brew install ffmpeg).")
+    endif()
+
+    message(STATUS "Resolved FFmpeg libavcodec ${VEIL_FFMPEG_PC_libavcodec_VERSION} via pkg-config")
+    add_library(veil_ffmpeg INTERFACE)
+    add_library(veil::ffmpeg ALIAS veil_ffmpeg)
+    target_link_libraries(veil_ffmpeg INTERFACE PkgConfig::VEIL_FFMPEG_PC)
+endif()
+
 add_library(veil_core STATIC
     ${VEIL_CORE_SOURCES}
     ${VEIL_CORE_HEADERS}
@@ -131,7 +148,7 @@ target_include_directories(veil_core
         "$<BUILD_INTERFACE:${VEIL_INCLUDE_DIR}>"
 )
 
-target_link_libraries(veil_core PUBLIC veil::options veil::third_party veil::sodium veil::jpeg)
+target_link_libraries(veil_core PUBLIC veil::options veil::third_party veil::sodium veil::jpeg veil::ffmpeg)
 
 if(VEIL_BUILD_TESTS)
     add_subdirectory(tests)

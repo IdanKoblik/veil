@@ -6,9 +6,10 @@
 extern "C" {
 #endif
 
-enum FileType { TYPE_PNG_IMAGE, TYPE_JPEG_IMAGE, TYPE_UNKNOWN, TYPE_NOT_FOUND };
+enum FileType { TYPE_PNG_IMAGE, TYPE_JPEG_IMAGE, TYPE_MP4_VIDEO, TYPE_UNKNOWN, TYPE_NOT_FOUND };
 
 int is_image_file(enum FileType type);
+int is_video_file(enum FileType type);
 
 const char *file_type_name(enum FileType type);
 

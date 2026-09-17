@@ -6,7 +6,7 @@
 extern "C" {
 #endif
 
-struct LsbCarrier {
+struct LosslessCarrier {
     Carrier carrier;
 
     unsigned char *pixels;
@@ -18,7 +18,7 @@ struct LsbCarrier {
     size_t width;
 };
 
-struct LsbCarrier *lsb_carrier_init(const char *target);
+struct LosslessCarrier *lossless_carrier_init(const char *target);
 
 #ifdef __cplusplus
 }

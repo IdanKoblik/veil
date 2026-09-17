@@ -1,4 +1,4 @@
-#include "dct.h"
+#include "jpeg.h"
 
 #include <sodium/randombytes.h>
 #include <stdlib.h>
@@ -27,7 +27,7 @@ static void coefficient_store(JCOEF *coefficient, size_t slot, void *ctx) {
     *coefficient = ((const JCOEF *)ctx)[slot];
 }
 
-static int coefficients_load(struct JpegImage *image, struct DctCarrier *carrier) {
+static int coefficients_load(struct JpegImage *image, struct JpegCarrier *carrier) {
     carrier->slots = jpeg_walk_coefficients(image, NULL, NULL);
     if (carrier->slots == 0) {
         ERROR("The image carries no usable DCT carrier");
@@ -40,7 +40,7 @@ static int coefficients_load(struct JpegImage *image, struct DctCarrier *carrier
         return -1;
     }
 
-    if (jpeg_walk_coefficients(image, coefficient_collect, carrier->values) == 0) {
+    if (jpeg_walk_coefficients(image, coefficient_collect, carrier->values) != carrier->slots) {
         ERROR("Failed to collect the DCT coefficients");
         return -1;
     }
@@ -53,10 +53,7 @@ static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit)
     if (!carrier)
         return -1;
 
-    const struct DctCarrier *image = (struct DctCarrier *)carrier;
-    if (!image)
-        return -1;
-
+    const struct JpegCarrier *image = (struct JpegCarrier *)carrier;
     if (slot >= image->slots)
         return -1;
 
@@ -68,11 +65,11 @@ static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit)
 
 static unsigned char c_read(Carrier *carrier, size_t slot) {
     if (!carrier)
-        return '\0';
+        return (unsigned char)-1;
 
-    const struct DctCarrier *image = (struct DctCarrier *)carrier;
+    const struct JpegCarrier *image = (struct JpegCarrier *)carrier;
     if (slot >= image->slots)
-        return -1;
+        return (unsigned char)-1;
 
     return (unsigned char)(image->values[slot] & 1);
 }
@@ -81,7 +78,7 @@ static size_t c_capacity(Carrier *carrier) {
     if (!carrier)
         return 0;
 
-    const struct DctCarrier *image = (struct DctCarrier *)carrier;
+    const struct JpegCarrier *image = (struct JpegCarrier *)carrier;
     return image->slots;
 }
 
@@ -89,7 +86,7 @@ static int c_save(Carrier *carrier, const char *output) {
     if (!carrier || !output)
         return -1;
 
-    struct DctCarrier *image = (struct DctCarrier *)carrier;
+    struct JpegCarrier *image = (struct JpegCarrier *)carrier;
 
     if (jpeg_walk_coefficients(&image->jpeg_image, coefficient_store, image->values) != image->slots) {
         ERROR("Failed to store the DCT coefficients back into the image");
@@ -109,18 +106,18 @@ static int c_free(Carrier *carrier) {
     if (!carrier)
         return -1;
 
-    struct DctCarrier *image = (struct DctCarrier *)carrier;
+    struct JpegCarrier *image = (struct JpegCarrier *)carrier;
     jpeg_image_close(&image->jpeg_image);
     free(image->values);
     free(image);
     return 0;
 }
 
-struct DctCarrier *dct_carrier_init(const char *target) {
+struct JpegCarrier *jpeg_carrier_init(const char *target) {
     if (!target)
         return NULL;
 
-    struct DctCarrier *carrier = calloc(1, sizeof(*carrier));
+    struct JpegCarrier *carrier = calloc(1, sizeof(*carrier));
     if (!carrier) {
         ERROR("Failed to allocate the DCT carrier");
         return NULL;
