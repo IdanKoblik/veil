@@ -6,9 +6,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include <veil/log.h>
+#include <veil/progress.h>
 
 #define H264_ENCODER "libx264"
 #define H264_ENCODER_THREADS 8
+#define H264_ENCODER_PRESET "ultrafast"
 
 struct H264Writer {
     const struct H264Reader *source;
@@ -190,6 +192,12 @@ static int encoder_open(struct H264Writer *writer, int width, int height, int pi
         return -1;
     }
 
+    // Lossless output is bit-exact on every preset, the slower ones only shave size, at 8x the time on medium.
+    if (av_opt_set(ctx->priv_data, "preset", H264_ENCODER_PRESET, 0) < 0) {
+        ERROR("Failed to set the %s preset", H264_ENCODER);
+        return -1;
+    }
+
     if (avcodec_open2(ctx, encoder, NULL) < 0) {
         ERROR("Failed to open %s", H264_ENCODER);
         return -1;
@@ -357,18 +365,29 @@ static void h264_writer_close(struct H264Writer *writer) {
 static unsigned char bit_get(const unsigned char *bits, const size_t slot) {
     return (unsigned char)((bits[slot / 8] >> (slot % 8)) & 1);
 }
-
-static void bit_flip(unsigned char *bits, const size_t slot) {
-    bits[slot / 8] ^= (unsigned char)(1u << (slot % 8));
+static void bit_set(unsigned char *bits, const size_t slot, const unsigned char bit) {
+    const unsigned char mask = (unsigned char)(1u << (slot % 8));
+    bits[slot / 8] = (unsigned char)(bit ? bits[slot / 8] | mask : bits[slot / 8] & ~mask);
 }
 
 static size_t bit_bytes(const size_t bits) {
     return (bits + 7) / 8;
 }
 
+static void edits_free(struct H264Carrier *carrier) {
+    if (!carrier->edits)
+        return;
+
+    for (size_t i = 0; i < carrier->frame_count; i++)
+        free(carrier->edits[i]);
+
+    free(carrier->edits);
+    carrier->edits = NULL;
+}
+
 static void h264_release(struct H264Carrier *carrier) {
+    edits_free(carrier);
     free(carrier->lsbs);
-    free(carrier->changed);
     free(carrier->timestamps);
     free(carrier->source);
     free(carrier);
@@ -395,7 +414,7 @@ static int frame_matches(const struct H264Carrier *carrier, const AVFrame *frame
 }
 
 static int frames_grow(struct H264Carrier *carrier, const size_t expected) {
-    // MP4 indexes record the frame count, sizing for it up front avoids reserving double while the map grows.
+    // The probe already counted the frames, sizing for it up front avoids reserving double while the map grows.
     size_t capacity = carrier->frame_capacity ? carrier->frame_capacity * 2 : 64;
     if (carrier->frame_count < expected && capacity < expected)
         capacity = expected;
@@ -478,27 +497,143 @@ static int frame_collect(struct H264Carrier *carrier, const AVFrame *frame, cons
     return 0;
 }
 
+static void edits_overlay(struct H264Carrier *carrier) {
+    if (!carrier->edits)
+        return;
+
+    const size_t bytes = bit_bytes(carrier->frame_slots);
+    for (size_t index = 0; index < carrier->frame_count; index++) {
+        const unsigned char *edit = carrier->edits[index];
+        if (!edit)
+            continue;
+
+        for (size_t pixel = 0; pixel < carrier->frame_slots; pixel++) {
+            if (bit_get(edit + bytes, pixel))
+                bit_set(carrier->lsbs, index * carrier->frame_slots + pixel, bit_get(edit, pixel));
+        }
+    }
+}
+
+// Strict when slots may already have been handed out against the probed layout, which the frames then have to match.
+static int carrier_load(struct H264Carrier *carrier, const int strict) {
+    struct H264Reader reader = {0};
+    AVFrame *frame = NULL;
+    int result = -1;
+
+    const size_t probed = carrier->frame_count;
+    const int width = carrier->width;
+    const int height = carrier->height;
+    const int pixel_format = carrier->pixel_format;
+
+    carrier->loaded = 1;
+    carrier->frame_count = 0;
+    carrier->frame_capacity = 0;
+
+    if (h264_reader_open(&reader, carrier->source) < 0)
+        goto done;
+
+    frame = av_frame_alloc();
+    if (!frame) {
+        ERROR("Failed to allocate a video frame");
+        goto done;
+    }
+
+    for (;;) {
+        const int got = h264_reader_next(&reader, frame, NULL, NULL);
+        if (got < 0)
+            goto done;
+
+        if (got == 0)
+            break;
+
+        const int collected = frame_collect(carrier, frame, probed);
+        av_frame_unref(frame);
+        if (collected < 0)
+            goto done;
+
+        progress_update("Reading frames", carrier->frame_count, probed);
+    }
+
+    if (carrier->frame_count == 0) {
+        ERROR("The video has no frames");
+        goto done;
+    }
+
+    if (strict && (carrier->frame_count != probed || carrier->width != width || carrier->height != height || carrier->pixel_format != pixel_format)) {
+        ERROR("The decoded frames don't match the video's index (%s)", carrier->source);
+        goto done;
+    }
+
+    carrier->slots = carrier->frame_slots * carrier->frame_count;
+
+    unsigned char *fitted = realloc(carrier->lsbs, bit_bytes(carrier->slots));
+    if (fitted)
+        carrier->lsbs = fitted;
+
+    edits_overlay(carrier);
+
+    DEBUG("H264 carrier loaded: %dx%d, %zu frames, %zu slots", carrier->width, carrier->height, carrier->frame_count, carrier->slots);
+    result = 0;
+done:
+    progress_finish();
+    av_frame_free(&frame);
+    h264_reader_close(&reader);
+
+    if (result < 0) {
+        // Reads and writes see a map that was handed off and refuse, rather than trusting half a load.
+        free(carrier->lsbs);
+        carrier->lsbs = NULL;
+        carrier->frame_count = probed;
+        carrier->width = width;
+        carrier->height = height;
+        carrier->pixel_format = pixel_format;
+        carrier->frame_slots = (size_t)width * (size_t)height;
+    }
+
+    return result;
+}
+
 static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit) {
     if (!carrier)
         return -1;
 
     struct H264Carrier *video = (struct H264Carrier *)carrier;
-    if (slot >= video->slots || !video->lsbs)
+    if (slot >= video->slots || (video->loaded && !video->lsbs))
         return -1;
 
-    if (bit_get(video->lsbs, slot) == bit)
+    const size_t index = slot / video->frame_slots;
+    const size_t pixel = slot % video->frame_slots;
+    const size_t bytes = bit_bytes(video->frame_slots);
+    unsigned char *edit = video->edits ? video->edits[index] : NULL;
+
+    if (video->lsbs && bit_get(video->lsbs, slot) == bit && !(edit && bit_get(edit + bytes, pixel)))
         return 0;
 
-    if (!video->changed) {
-        video->changed = calloc(bit_bytes(video->slots), 1);
-        if (!video->changed) {
+    if (!video->edits) {
+        video->edits = calloc(video->frame_count, sizeof(*video->edits));
+        if (!video->edits) {
             ERROR("Failed to allocate the change map");
             return -1;
         }
     }
 
-    bit_flip(video->lsbs, slot);
-    bit_flip(video->changed, slot);
+    // Kept per frame, so saving can skip every frame the payload never reached.
+    if (!edit) {
+        edit = calloc(2 * bytes, 1);
+        if (!edit) {
+            ERROR("Failed to allocate the change map");
+            return -1;
+        }
+
+        video->edits[index] = edit;
+    }
+
+    bit_set(edit, pixel, bit);
+    bit_set(edit + bytes, pixel, 1);
+
+    if (video->lsbs)
+        bit_set(video->lsbs, slot, bit);
+
     return 0;
 }
 
@@ -506,8 +641,15 @@ static unsigned char c_read(Carrier *carrier, size_t slot) {
     if (!carrier)
         return (unsigned char)-1;
 
-    const struct H264Carrier *video = (struct H264Carrier *)carrier;
-    if (slot >= video->slots || !video->lsbs)
+    struct H264Carrier *video = (struct H264Carrier *)carrier;
+    if (slot >= video->slots)
+        return (unsigned char)-1;
+
+    // Encoding never reads, so only decoding pays for a pass over every frame.
+    if (!video->loaded && carrier_load(video, 1) < 0)
+        return (unsigned char)-1;
+
+    if (!video->lsbs)
         return (unsigned char)-1;
 
     return bit_get(video->lsbs, slot);
@@ -527,13 +669,9 @@ static int frame_apply(const struct H264Carrier *carrier, AVFrame *frame, const 
         return -1;
     }
 
-    if (!carrier->changed)
+    const unsigned char *edit = carrier->edits ? carrier->edits[index] : NULL;
+    if (!edit)
         return 0;
-
-    if (!carrier->lsbs) {
-        ERROR("The LSB map was handed off, the carrier's changes are gone");
-        return -1;
-    }
 
     if (av_frame_make_writable(frame) < 0) {
         ERROR("Failed to make a decoded frame writable");
@@ -541,22 +679,21 @@ static int frame_apply(const struct H264Carrier *carrier, AVFrame *frame, const 
     }
 
     const size_t width = (size_t)carrier->width;
-    const size_t base = index * carrier->frame_slots;
+    const size_t bytes = bit_bytes(carrier->frame_slots);
+    const unsigned char *mask = edit + bytes;
 
-    for (size_t pixel = 0; pixel < carrier->frame_slots; pixel++) {
-        const size_t slot = base + pixel;
-
-        // Most bytes of the change map are empty, a whole untouched byte is skipped at once.
-        if (slot % 8 == 0 && carrier->changed[slot / 8] == 0 && pixel + 8 <= carrier->frame_slots) {
-            pixel += 7;
+    for (size_t byte = 0; byte < bytes; byte++) {
+        if (mask[byte] == 0)
             continue;
+
+        for (size_t bit = 0; bit < 8; bit++) {
+            if (!((mask[byte] >> bit) & 1))
+                continue;
+
+            const size_t pixel = byte * 8 + bit;
+            unsigned char *sample = &frame->data[0][(pixel / width) * (size_t)frame->linesize[0] + pixel % width];
+            lsb_matching(sample, (unsigned char)((edit[byte] >> bit) & 1));
         }
-
-        if (!bit_get(carrier->changed, slot))
-            continue;
-
-        unsigned char *sample = &frame->data[0][(pixel / width) * (size_t)frame->linesize[0] + pixel % width];
-        lsb_matching(sample, bit_get(carrier->lsbs, slot));
     }
 
     return 0;
@@ -598,6 +735,8 @@ static int c_save(Carrier *carrier, const char *output) {
         av_frame_unref(frame);
         if (!encoded)
             goto done;
+
+        progress_update("Encoding frames", index, video->frame_count);
     }
 
     if (index != video->frame_count) {
@@ -611,6 +750,7 @@ static int c_save(Carrier *carrier, const char *output) {
     DEBUG("Wrote the H264 carrier into %s", output);
     result = 0;
 done:
+    progress_finish();
     av_frame_free(&frame);
     h264_writer_close(&writer);
     h264_reader_close(&reader);
@@ -625,7 +765,21 @@ static int c_free(Carrier *carrier) {
     return 0;
 }
 
-struct H264Carrier *h264_carrier_init(const char *target) {
+static size_t frames_count(struct H264Reader *reader) {
+    // Counting packets reads the index and skips decoding, a fraction of a second even on long videos.
+    // Discarded packets are the ones an edit list cuts, the decoder never outputs a frame for them.
+    AVPacket *packet = reader->packet;
+    size_t frames = 0;
+
+    while (av_read_frame(reader->format_ctx, packet) >= 0) {
+        frames += packet->stream_index == reader->stream_index && !(packet->flags & AV_PKT_FLAG_DISCARD);
+        av_packet_unref(packet);
+    }
+
+    return frames;
+}
+
+struct H264Carrier *h264_carrier_open(const char *target) {
     if (!target)
         return NULL;
 
@@ -639,8 +793,7 @@ struct H264Carrier *h264_carrier_init(const char *target) {
     }
 
     struct H264Reader reader = {0};
-    AVFrame *frame = NULL;
-    int loaded = -1;
+    int opened = -1;
 
     carrier->source = strdup(target);
     if (!carrier->source) {
@@ -651,40 +804,25 @@ struct H264Carrier *h264_carrier_init(const char *target) {
     if (h264_reader_open(&reader, target) < 0)
         goto done;
 
-    frame = av_frame_alloc();
-    if (!frame) {
-        ERROR("Failed to allocate a video frame");
+    const AVCodecParameters *params = reader.format_ctx->streams[reader.stream_index]->codecpar;
+    if (!pixel_format_supported(params->format)) {
+        ERROR("Unsupported pixel format %s", av_get_pix_fmt_name(params->format));
         goto done;
     }
 
-    const int64_t indexed = reader.format_ctx->streams[reader.stream_index]->nb_frames;
-    const size_t expected = indexed > 0 ? (size_t)indexed : 0;
+    carrier->width = params->width;
+    carrier->height = params->height;
+    carrier->pixel_format = params->format;
+    carrier->frame_slots = (size_t)params->width * (size_t)params->height;
+    carrier->frame_rate = h264_reader_frame_rate(&reader);
 
-    for (;;) {
-        const int got = h264_reader_next(&reader, frame, NULL, NULL);
-        if (got < 0)
-            goto done;
-
-        if (got == 0)
-            break;
-
-        const int collected = frame_collect(carrier, frame, expected);
-        av_frame_unref(frame);
-        if (collected < 0)
-            goto done;
-    }
-
-    if (carrier->frame_count == 0) {
+    carrier->frame_count = frames_count(&reader);
+    if (carrier->frame_count == 0 || carrier->frame_slots == 0) {
         ERROR("The video has no frames");
         goto done;
     }
 
     carrier->slots = carrier->frame_slots * carrier->frame_count;
-    carrier->frame_rate = h264_reader_frame_rate(&reader);
-
-    unsigned char *fitted = realloc(carrier->lsbs, bit_bytes(carrier->slots));
-    if (fitted)
-        carrier->lsbs = fitted;
 
     DEBUG("H264 carrier: %dx%d, %zu frames, %zu slots", carrier->width, carrier->height, carrier->frame_count, carrier->slots);
 
@@ -693,12 +831,24 @@ struct H264Carrier *h264_carrier_init(const char *target) {
     carrier->carrier.capacity = c_capacity;
     carrier->carrier.save = c_save;
     carrier->carrier.free = c_free;
-    loaded = 0;
+    opened = 0;
 done:
-    av_frame_free(&frame);
     h264_reader_close(&reader);
 
-    if (loaded < 0) {
+    if (opened < 0) {
+        h264_release(carrier);
+        return NULL;
+    }
+
+    return carrier;
+}
+
+struct H264Carrier *h264_carrier_init(const char *target) {
+    struct H264Carrier *carrier = h264_carrier_open(target);
+    if (!carrier)
+        return NULL;
+
+    if (carrier_load(carrier, 0) < 0) {
         h264_release(carrier);
         return NULL;
     }

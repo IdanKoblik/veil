@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.1]
+
+### Added
+
+- A progress bar in the CLI while a video is read or encoded.
+
+### Changed
+
+- MP4 encoding is about 10x faster: the frames are no longer decoded up front, and x264 runs its lossless mode on the `ultrafast` preset. Output files are around a third larger.
+
+### Fixed
+
+- Encrypting into a video no longer needs a table of every slot in memory, which ran to tens of GB on a few minutes of video.
+
 ## [2.0.0]
 
 ### Added
