@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Add Data piping to the cli
 - LSB & DCT replacement is now **deprecated**, and cannot be selected as a codec.
 
+### Fixed
+
+- **Security:** a passphrase now encrypts the payload itself.
+- 
 ## [1.0.0]
 
 ### Added

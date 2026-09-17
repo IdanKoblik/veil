@@ -239,6 +239,105 @@ TEST container_detects_a_tampered_encrypted_header(void) {
     PASS();
 }
 
+static enum greatest_test_res read_scattered(struct Container *container, unsigned char *bytes, size_t len) {
+    for (size_t i = 0; i < len; i++) {
+        unsigned char byte = 0;
+        for (size_t bit = 0; bit < 8; bit++) {
+            const size_t slot = scatter_next(&container->scatter);
+            ASSERT(slot != SIZE_MAX);
+            byte |= (unsigned char)(container->carrier->read(container->carrier, slot + container->preamble_bits) << bit);
+        }
+
+        bytes[i] = byte;
+    }
+
+    PASS();
+}
+
+TEST container_does_not_scatter_the_plaintext(void) {
+    char *image = create_test_png(64, 64, 3);
+    char *output = create_temp_path();
+    ASSERT(image && output);
+
+    unsigned char payload[PAYLOAD_LEN];
+    fill_payload(payload, sizeof(payload));
+    CHECK_CALL(embed(image, output, "a passphrase", payload, sizeof(payload)));
+
+    struct Container *container = open_container(output, "a passphrase");
+    ASSERT(container);
+    ASSERT_EQ(0, container_read_header(container));
+
+    // The key and scatter are right, so all that stands between these bits and the payload is the encryption.
+    unsigned char scattered[PAYLOAD_LEN];
+    CHECK_CALL(read_scattered(container, scattered, sizeof(scattered)));
+    ASSERT(memcmp(payload, scattered, sizeof(payload)) != 0);
+
+    container_free(container);
+    unlink(image);
+    unlink(output);
+    free(image);
+    free(output);
+    PASS();
+}
+
+TEST container_detects_a_tampered_encrypted_payload(void) {
+    char *image = create_test_png(64, 64, 3);
+    char *output = create_temp_path();
+    char *tampered = create_temp_path();
+    ASSERT(image && output && tampered);
+
+    unsigned char payload[PAYLOAD_LEN];
+    fill_payload(payload, sizeof(payload));
+    CHECK_CALL(embed(image, output, "a passphrase", payload, sizeof(payload)));
+
+    struct Container *container = open_container(output, "a passphrase");
+    ASSERT(container);
+    ASSERT_EQ(0, container_read_header(container));
+
+    Carrier *carrier = container->carrier;
+    const size_t slot = scatter_next(&container->scatter) + container->preamble_bits;
+    ASSERT_EQ(0, carrier->write(carrier, slot, (unsigned char)!carrier->read(carrier, slot)));
+    ASSERT_EQ(0, carrier->save(carrier, tampered));
+    container_free(container);
+
+    container = open_container(tampered, "a passphrase");
+    ASSERT(container);
+    ASSERT_EQ(0, container_read_header(container));
+
+    unsigned char *got = NULL;
+    ASSERT(container_decode_chunk(container, &got, sizeof(payload)) < 0);
+    ASSERT_EQ(NULL, got);
+
+    container_free(container);
+    unlink(image);
+    unlink(output);
+    unlink(tampered);
+    free(image);
+    free(output);
+    free(tampered);
+    PASS();
+}
+
+TEST container_refuses_a_header_length_that_disagrees_with_the_payload(void) {
+    char *image = create_test_png(64, 64, 3);
+    ASSERT(image);
+
+    struct Container *container = open_container(image, "a passphrase");
+    ASSERT(container);
+
+    unsigned char payload[PAYLOAD_LEN];
+    fill_payload(payload, sizeof(payload));
+    container->header.payload_len = sizeof(payload) + 1;
+    ASSERT_EQ(0, container_reserve_header(container));
+    ASSERT_EQ(0, container_encode_chunk(container, payload, sizeof(payload)));
+    ASSERT(container_write_header(container) < 0);
+
+    container_free(container);
+    unlink(image);
+    free(image);
+    PASS();
+}
+
 TEST container_rejects_a_length_the_carrier_cannot_hold(void) {
     char *image = create_test_png(16, 16, 3);
     char *output = create_temp_path();
@@ -324,6 +423,9 @@ SUITE(container_suite) {
     RUN_TEST(container_refuses_the_wrong_or_a_missing_passphrase);
     RUN_TEST(container_finds_nothing_in_a_plain_carrier);
     RUN_TEST(container_detects_a_tampered_encrypted_header);
+    RUN_TEST(container_does_not_scatter_the_plaintext);
+    RUN_TEST(container_detects_a_tampered_encrypted_payload);
+    RUN_TEST(container_refuses_a_header_length_that_disagrees_with_the_payload);
     RUN_TEST(container_rejects_a_length_the_carrier_cannot_hold);
     RUN_TEST(container_will_not_overfill_a_carrier);
     RUN_TEST(container_calls_come_in_order);

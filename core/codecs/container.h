@@ -17,7 +17,11 @@ extern "C" {
 
 #define SALT_LEN crypto_pwhash_SALTBYTES
 #define HEADER_NONCE_LEN crypto_secretbox_NONCEBYTES
-#define PAYLOAD_NONCE_LEN crypto_secretbox_NONCEBYTES
+#define PAYLOAD_STREAM_LEN crypto_secretstream_xchacha20poly1305_HEADERBYTES
+#define PAYLOAD_KEY_LEN crypto_secretstream_xchacha20poly1305_KEYBYTES
+
+#define CONTAINER_STREAM_CHUNK (64 * 1024)
+#define CONTAINER_STREAM_ABYTES crypto_secretstream_xchacha20poly1305_ABYTES
 
 #define PAYLOAD_LEN_BYTES 8
 #define PAYLOAD_CHECKSUM_BYTES 1
@@ -25,7 +29,7 @@ extern "C" {
 #define CONTAINER_PREAMBLE_BYTES (VEIL_MAGIC_LEN + 1 + 1)
 #define CONTAINER_KDF_BYTES (SALT_LEN + HEADER_NONCE_LEN)
 #define CONTAINER_CLEAR_BYTES (PAYLOAD_LEN_BYTES + PAYLOAD_CHECKSUM_BYTES)
-#define CONTAINER_SECRET_BYTES (CONTAINER_CLEAR_BYTES + PAYLOAD_NONCE_LEN)
+#define CONTAINER_SECRET_BYTES (CONTAINER_CLEAR_BYTES + PAYLOAD_STREAM_LEN)
 #define CONTAINER_SEALED_BYTES (CONTAINER_SECRET_BYTES + crypto_secretbox_MACBYTES)
 #define CONTAINER_HEADER_BITS_MAX (CONTAINER_SEALED_BYTES * 8)
 
@@ -39,7 +43,7 @@ struct ContainerHeader {
 
     unsigned char salt[SALT_LEN];
     unsigned char header_nonce[HEADER_NONCE_LEN];
-    unsigned char payload_nonce[PAYLOAD_NONCE_LEN];
+    unsigned char payload_stream[PAYLOAD_STREAM_LEN];
 };
 
 struct Container {
@@ -51,6 +55,14 @@ struct Container {
     size_t header_slots[CONTAINER_HEADER_BITS_MAX];
     int header_reserved;
     unsigned char box_key[crypto_secretbox_KEYBYTES];
+
+    crypto_secretstream_xchacha20poly1305_state stream;
+    unsigned char stream_plain[CONTAINER_STREAM_CHUNK];
+    unsigned char stream_cipher[CONTAINER_STREAM_CHUNK + CONTAINER_STREAM_ABYTES];
+    size_t stream_fill;
+    size_t stream_pos;
+    size_t stream_total;
+    int stream_done;
 
     const char *target;
     char passphrase[PASSPHRASE_MAX];

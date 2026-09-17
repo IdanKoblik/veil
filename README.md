@@ -86,18 +86,20 @@ types can implement their own storage mechanisms.
 
 Current and planned carrier types include:
 
-| Carrier | Technique | Status |
-|---------|-----------|--------|
-| PNG     |   LSB     |    ✅    |
-| JPEG     |   DCT coefficients     |    ✅    |
-| MP4     |   Video transform coefficients     |    🚧    |
+| Carrier | Technique                    | Status |
+|---------|------------------------------|--------|
+| PNG     | LSB                          | ✅     |
+| JPEG    | DCT coefficients             | ✅     |
+| MP4     | Video transform coefficients | 🚧     |
 
 Support is actively evolving as the carrier abstraction is developed.
 
 ## Encryption
 
-When a passphrase is supplied, the payload can be encrypted before being
-embedded into the carrier.
+When a passphrase is supplied, the payload is encrypted and authenticated
+with XChaCha20-Poly1305 before being embedded into the carrier, under a key
+derived from the passphrase with Argon2. A wrong passphrase or a tampered
+carrier is refused instead of producing garbage.
 
 The passphrase is also used for deterministic pseudo-random placement when
 supported by the carrier. This prevents the encoded payload from necessarily

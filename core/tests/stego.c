@@ -93,6 +93,22 @@ TEST stego_round_trips_across_several_chunks(void) {
     PASS();
 }
 
+TEST stego_round_trips_several_encrypted_chunks(void) {
+    CHECK_CALL(round_trip(create_test_png(512, 512, 3), 90 * 1024, "a passphrase"));
+    PASS();
+}
+
+TEST stego_round_trips_an_encrypted_payload_on_a_chunk_boundary(void) {
+    // Ends exactly on a chunk, so the stream closes with an empty final chunk.
+    CHECK_CALL(round_trip(create_test_png(512, 512, 3), 64 * 1024, "a passphrase"));
+    PASS();
+}
+
+TEST stego_round_trips_an_empty_encrypted_payload(void) {
+    CHECK_CALL(round_trip(create_test_png(32, 32, 3), 0, "a passphrase"));
+    PASS();
+}
+
 TEST stego_round_trips_an_empty_payload(void) {
     CHECK_CALL(round_trip(create_test_png(16, 16, 3), 0, NULL));
     PASS();
@@ -192,6 +208,9 @@ SUITE(stego_suite) {
     RUN_TEST(stego_round_trips_a_jpeg);
     RUN_TEST(stego_round_trips_across_several_chunks);
     RUN_TEST(stego_round_trips_an_empty_payload);
+    RUN_TEST(stego_round_trips_several_encrypted_chunks);
+    RUN_TEST(stego_round_trips_an_encrypted_payload_on_a_chunk_boundary);
+    RUN_TEST(stego_round_trips_an_empty_encrypted_payload);
     RUN_TEST(encode_writes_nothing_when_the_payload_does_not_fit);
     RUN_TEST(encode_wants_data_it_can_read);
     RUN_TEST(decode_leaves_the_output_alone_on_a_wrong_passphrase);
