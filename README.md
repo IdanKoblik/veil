@@ -17,7 +17,7 @@ The project is designed around a modular core that separates the steganography
 logic from the carrier format. This makes it possible to support different
 media formats and hiding techniques without coupling them to the CLI.
 
-<img src="assets/demo.png" alt="veil" width="300">
+![demo](assets/demo.png)
 
 ## Install
 
