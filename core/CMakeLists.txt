@@ -116,13 +116,13 @@ endif()
 
 if(NOT TARGET veil::ffmpeg)
     if(PKG_CONFIG_FOUND)
-        pkg_check_modules(VEIL_FFMPEG_PC QUIET IMPORTED_TARGET libavformat libavcodec libavutil)
+        pkg_check_modules(VEIL_FFMPEG_PC QUIET IMPORTED_TARGET libavformat libavcodec libavutil libswscale)
     endif()
 
     if(NOT TARGET PkgConfig::VEIL_FFMPEG_PC)
         message(FATAL_ERROR
             "Could not find FFmpeg. Install it (Arch: ffmpeg, Debian: "
-            "libavformat-dev libavcodec-dev libavutil-dev, macOS: brew install ffmpeg).")
+            "libavformat-dev libavcodec-dev libavutil-dev libswscale-dev, macOS: brew install ffmpeg).")
     endif()
 
     message(STATUS "Resolved FFmpeg libavcodec ${VEIL_FFMPEG_PC_libavcodec_VERSION} via pkg-config")

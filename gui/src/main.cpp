@@ -1,17 +1,20 @@
 #include "app/theme.hpp"
 #include "app/widgets.hpp"
 #include "documents/ImageDocument.hpp"
+#include "documents/VideoDocument.hpp"
 #include "raylib.h"
 #include "welcome.hpp"
 #include "window.hpp"
 #include <algorithm>
 #include <cfloat>
 #include <imgui.h>
+#include <memory>
 #include <portable-file-dialogs.h>
 #include <rlImGui.h>
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <veil/fs/file.h>
 #include <veil/log.h>
 
 static void load_fonts(void) {
@@ -33,7 +36,14 @@ static void load_fonts(void) {
     io.Fonts->AddFontDefault();
 }
 
-static void run(ImageDocument &document) {
+static std::unique_ptr<FileDocument> document_for(const std::string &target) {
+    if (is_video_file(get_file_type(target.c_str())))
+        return std::make_unique<VideoDocument>();
+
+    return std::make_unique<ImageDocument>();
+}
+
+static void run(FileDocument &document) {
     while (!WindowShouldClose() && !document.exit) {
         begin_frame();
 
@@ -74,10 +84,10 @@ int main(void) {
             break;
 
         // Scoped so the document's texture is released while the GL context still exists.
-        ImageDocument document;
+        const std::unique_ptr<FileDocument> document = document_for(target);
 
         try {
-            document.open(target);
+            document->open(target);
             problem.clear();
         } catch (const std::exception &e) {
             ERROR("%s", e.what());
@@ -85,7 +95,7 @@ int main(void) {
             continue;
         }
 
-        run(document);
+        run(*document);
     }
 
     rlImGuiShutdown();

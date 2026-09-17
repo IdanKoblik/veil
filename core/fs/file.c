@@ -83,17 +83,19 @@ enum FileType detect_video_type(const char *target) {
     if (len < 12)
         return TYPE_UNKNOWN;
 
-    if (memcmp(header + 4, "ftyp", 4) == 0) {
-        const unsigned char *brand = header + 8;
+    if (memcmp(header + 4, "ftyp", 4) != 0)
+        return TYPE_UNKNOWN;
 
-        // https://mp4ra.org/registered-types/brands
-        if (memcmp(brand, "isom", 4) == 0 || memcmp(brand, "iso2", 4) == 0 || memcmp(brand, "iso5", 4) == 0 || memcmp(brand, "iso6", 4) == 0 || memcmp(brand, "mp41", 4) == 0 || memcmp(brand, "mp42", 4) == 0 || memcmp(brand, "avc1", 4) == 0 ||
-            memcmp(brand, "M4V ", 4) == 0) {
-            return TYPE_MP4_VIDEO;
-        }
-    }
+    // Muxers pick from dozens of brands (OBS writes iso4), so any ftyp counts except the still-image ones sharing the box.
+    // https://mp4ra.org/registered-types/brands
+    static const char *const image_brands[] = {"heic", "heix", "heim", "heis", "mif1", "mif2", "avif", "jxl "};
 
-    return TYPE_UNKNOWN;
+    const unsigned char *brand = header + 8;
+    for (size_t i = 0; i < sizeof(image_brands) / sizeof(*image_brands); i++)
+        if (memcmp(brand, image_brands[i], 4) == 0)
+            return TYPE_UNKNOWN;
+
+    return TYPE_MP4_VIDEO;
 }
 
 enum FileType get_file_type(const char *target) {
