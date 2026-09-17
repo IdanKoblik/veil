@@ -43,7 +43,7 @@ static void draw(struct ProgressBar *bar, size_t done, size_t total, double elap
     const double fraction = total ? (double)(done < total ? done : total) / (double)total : 0;
     const double rate = elapsed > 0 ? (double)done / elapsed : 0;
 
-    char eta[16] = "--:--";
+    char eta[32] = "--:--";
     if (done >= total)
         duration_format(eta, sizeof(eta), elapsed);
     else if (rate > 0 && elapsed > 0.5)
