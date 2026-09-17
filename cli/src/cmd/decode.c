@@ -45,13 +45,8 @@ static int exec(int argc, char *argv[]) {
     }
 
     enum FileType type = get_file_type(target);
-    if (type == TYPE_NOT_FOUND) {
+    if (type == TYPE_NOT_FOUND || type == TYPE_UNKNOWN) {
         ERROR("Target file was not found");
-        return EXEC_GENERIC_ERROR;
-    }
-
-    if (!is_image_file(type)) {
-        ERROR("%s is %s, not a PNG or JPEG image", target, file_type_name(type));
         return EXEC_GENERIC_ERROR;
     }
 
