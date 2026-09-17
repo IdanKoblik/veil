@@ -40,6 +40,18 @@ static int hex_load(const char *target, struct Stream *out) {
 }
 
 static int lsb_load(const char *target, struct Stream *out) {
+#ifdef VEIL_WITH_VIDEO
+    if (is_video_file(get_file_type(target))) {
+        struct H264Carrier *video = h264_carrier_init(target);
+        if (!video)
+            return -1;
+
+        const int rc = stream_take_h264(video, out);
+        video->carrier.free(&video->carrier);
+        return rc;
+    }
+#endif
+
     struct PixelBuffer pixels;
     if (pixels_load(target, &pixels) != 0)
         return -1;
@@ -144,7 +156,11 @@ int stream_kind_available(enum StreamKind kind, enum FileType type) {
     case STREAM_HEX:
         return type != TYPE_NOT_FOUND;
     case STREAM_LSB:
+#ifdef VEIL_WITH_VIDEO
+        return is_image_file(type) || is_video_file(type);
+#else
         return is_image_file(type);
+#endif
     case STREAM_DCT:
         return type == TYPE_JPEG_IMAGE;
     default:
@@ -171,6 +187,33 @@ int stream_load(const char *target, enum StreamKind kind, struct Stream *out) {
         return -1;
     }
 }
+
+#ifdef VEIL_WITH_VIDEO
+int stream_take_h264(struct H264Carrier *carrier, struct Stream *out) {
+    if (!carrier || !out || !carrier->lsbs)
+        return -1;
+
+    memset(out, 0, sizeof(*out));
+    out->kind = STREAM_LSB;
+
+    const size_t len = carrier->slots / 8;
+    if (len == 0) {
+        ERROR("The video holds fewer than 8 slots (%s)", carrier->source);
+        return -1;
+    }
+
+    // The map is already packed in stream order (bit N is bit N % 8 of byte N / 8), and on a long video
+    // it runs to gigabytes, so it is moved rather than copied. The carrier can't read or write after this.
+    out->bytes = carrier->lsbs;
+    out->len = len;
+    out->slots = carrier->slots;
+    carrier->lsbs = NULL;
+
+    DEBUG("LSB stream: %zu bytes over %zu video slots", len, carrier->slots);
+
+    return 0;
+}
+#endif
 
 void stream_free(struct Stream *stream) {
     if (!stream)

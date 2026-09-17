@@ -8,7 +8,7 @@
 extern "C" {
 #endif
 
-struct DctCarrier {
+struct JpegCarrier {
     Carrier carrier;
 
     JCOEF *values;
@@ -17,7 +17,7 @@ struct DctCarrier {
     struct JpegImage jpeg_image;
 };
 
-struct DctCarrier *dct_carrier_init(const char *target);
+struct JpegCarrier *jpeg_carrier_init(const char *target);
 
 #ifdef __cplusplus
 }

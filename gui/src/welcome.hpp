@@ -62,7 +62,7 @@ static void drop_zone(float height) {
 
     ImGui::SetCursorScreenPos(ImVec2(min.x, min.y + height * 0.5f - ImGui::GetTextLineHeightWithSpacing()));
     ui::centered_label("DROP A CARRIER HERE");
-    ui::centered_label("PNG OR JPEG");
+    ui::centered_label("IMAGE(PNG, JPEG) OR VIDEO(MP4)");
 
     ImGui::SetCursorScreenPos(ImVec2(min.x, max.y));
 }
@@ -116,7 +116,7 @@ std::string welcome(const char *problem) {
         ImGui::PushStyleColor(ImGuiCol_ButtonActive, theme::accent_hover);
 
         if (ImGui::Button("Open a carrier...", ImVec2(-FLT_MIN, 0.0f))) {
-            const std::vector<std::string> picked = pfd::open_file("Open a carrier", ".", {"Images", "*.png *.jpg *.jpeg", "All files", "*"}).result();
+            const std::vector<std::string> picked = pfd::open_file("Open a carrier", ".", {"Carriers", "*.png *.jpg *.jpeg *.mp4", "Images", "*.png *.jpg *.jpeg", "Videos", "*.mp4", "All files", "*"}).result();
 
             if (!picked.empty())
                 target = picked[0];

@@ -16,6 +16,8 @@ typedef struct Carrier {
 
 Carrier *figure_carrier(const char *target);
 
+void lsb_matching(unsigned char *sample, unsigned char bit);
+
 #ifdef __cplusplus
 }
 #endif

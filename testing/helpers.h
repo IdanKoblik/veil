@@ -60,6 +60,27 @@ static inline char *create_test_jpg(int width, int height, int quality) {
     return strdup(path);
 }
 
+static inline char *create_test_mp4(int width, int height, int frames) {
+    char path[] = "/tmp/test_XXXXXX";
+    int fd = mkstemp(path);
+    if (fd < 0)
+        return NULL;
+    close(fd);
+
+    char command[512];
+    snprintf(command, sizeof(command),
+             "ffmpeg -loglevel error -y -f lavfi -i testsrc=size=%dx%d:rate=10 -f lavfi -i sine "
+             "-frames:v %d -shortest -c:v libx264 -pix_fmt yuv420p -c:a aac -f mp4 %s",
+             width, height, frames, path);
+
+    if (system(command) != 0) {
+        unlink(path);
+        return NULL;
+    }
+
+    return strdup(path);
+}
+
 static inline char *create_temp_path(void) {
     char path[] = "/tmp/test_XXXXXX";
     int fd = mkstemp(path);

@@ -19,6 +19,11 @@ file(GLOB_RECURSE VEIL_CORE_HEADERS CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DI
 list(FILTER VEIL_CORE_SOURCES EXCLUDE REGEX "/(tests|build|third_party)/")
 list(FILTER VEIL_CORE_HEADERS EXCLUDE REGEX "/(tests|build|third_party)/")
 
+if(NOT VEIL_WITH_VIDEO)
+    list(FILTER VEIL_CORE_SOURCES EXCLUDE REGEX "/video/")
+    list(FILTER VEIL_CORE_HEADERS EXCLUDE REGEX "/video/")
+endif()
+
 if(NOT VEIL_CORE_SOURCES)
     message(FATAL_ERROR "No .c files under ${CMAKE_CURRENT_SOURCE_DIR}")
 endif()
@@ -114,6 +119,23 @@ if(NOT TARGET veil::jpeg)
     target_link_libraries(veil_jpeg INTERFACE JPEG::JPEG)
 endif()
 
+if(VEIL_WITH_VIDEO AND NOT TARGET veil::ffmpeg)
+    if(PKG_CONFIG_FOUND)
+        pkg_check_modules(VEIL_FFMPEG_PC QUIET IMPORTED_TARGET libavformat libavcodec libavutil libswscale)
+    endif()
+
+    if(NOT TARGET PkgConfig::VEIL_FFMPEG_PC)
+        message(FATAL_ERROR
+            "Could not find FFmpeg. Install it (Arch: ffmpeg, Debian: "
+            "libavformat-dev libavcodec-dev libavutil-dev libswscale-dev, macOS: brew install ffmpeg).")
+    endif()
+
+    message(STATUS "Resolved FFmpeg libavcodec ${VEIL_FFMPEG_PC_libavcodec_VERSION} via pkg-config")
+    add_library(veil_ffmpeg INTERFACE)
+    add_library(veil::ffmpeg ALIAS veil_ffmpeg)
+    target_link_libraries(veil_ffmpeg INTERFACE PkgConfig::VEIL_FFMPEG_PC)
+endif()
+
 add_library(veil_core STATIC
     ${VEIL_CORE_SOURCES}
     ${VEIL_CORE_HEADERS}
@@ -132,6 +154,11 @@ target_include_directories(veil_core
 )
 
 target_link_libraries(veil_core PUBLIC veil::options veil::third_party veil::sodium veil::jpeg)
+
+if(VEIL_WITH_VIDEO)
+    target_compile_definitions(veil_core PUBLIC VEIL_WITH_VIDEO)
+    target_link_libraries(veil_core PUBLIC veil::ffmpeg)
+endif()
 
 if(VEIL_BUILD_TESTS)
     add_subdirectory(tests)

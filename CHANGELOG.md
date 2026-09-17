@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0]
+
 ### Added
 
+- Add support for MP4 video files.
 - Add data checksum to container header. 
 - `veil(1)` man page, installed with the CLI and published with each release.
 - `devtools/install.sh` and `devtools/uninstall.sh`, which fetch the release binary and check it against `checksums.txt`.
@@ -22,7 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Security:** a passphrase now encrypts the payload itself.
-- 
+
 ## [1.0.0]
 
 ### Added

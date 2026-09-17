@@ -2,7 +2,6 @@
 
 #include <stddef.h>
 #include <veil/byte.h>
-#include <veil/codecs/codec.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -15,8 +14,6 @@ struct PixelBuffer {
     int width;
     int height;
     int channels;
-
-    enum CodecType codec;
 };
 
 int pixels_load(const char *target, struct PixelBuffer *out);

@@ -31,6 +31,11 @@ env:
     pkg-config
     libsodium-dev
     libjpeg-dev
+    libavformat-dev
+    libavcodec-dev
+    libavutil-dev
+    libswscale-dev
+    ffmpeg
   # Only the GUI needs a window system and a GL stack, so these are installed on
   # demand and the core and CLI jobs stay lean.
   APT_GUI_PACKAGES: >-

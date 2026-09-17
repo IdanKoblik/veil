@@ -27,6 +27,28 @@ TEST file_type_is_read_from_the_contents(void) {
     PASS();
 }
 
+TEST file_type_accepts_any_mp4_brand_but_still_images(void) {
+    const unsigned char obs[] = {0, 0, 0, 32, 'f', 't', 'y', 'p', 'i', 's', 'o', '4', 0, 0, 2, 0};
+    const unsigned char dash[] = {0, 0, 0, 24, 'f', 't', 'y', 'p', 'd', 'a', 's', 'h', 0, 0, 0, 0};
+    const unsigned char heic[] = {0, 0, 0, 24, 'f', 't', 'y', 'p', 'h', 'e', 'i', 'c', 0, 0, 0, 0};
+    char *obs_path = create_temp_file(obs, sizeof(obs));
+    char *dash_path = create_temp_file(dash, sizeof(dash));
+    char *heic_path = create_temp_file(heic, sizeof(heic));
+    ASSERT(obs_path && dash_path && heic_path);
+
+    ASSERT_EQ(TYPE_MP4_VIDEO, get_file_type(obs_path));
+    ASSERT_EQ(TYPE_MP4_VIDEO, get_file_type(dash_path));
+    ASSERT_EQ(TYPE_UNKNOWN, get_file_type(heic_path));
+
+    unlink(obs_path);
+    unlink(dash_path);
+    unlink(heic_path);
+    free(obs_path);
+    free(dash_path);
+    free(heic_path);
+    PASS();
+}
+
 TEST file_type_tells_missing_from_unknown(void) {
     ASSERT_EQ(TYPE_NOT_FOUND, get_file_type("/tmp/no_such_file_for_veil_tests"));
     ASSERT_EQ(TYPE_NOT_FOUND, get_file_type(NULL));
@@ -72,6 +94,7 @@ TEST raw_data_wants_a_file_it_can_read(void) {
 
 SUITE(file_suite) {
     RUN_TEST(file_type_is_read_from_the_contents);
+    RUN_TEST(file_type_accepts_any_mp4_brand_but_still_images);
     RUN_TEST(file_type_tells_missing_from_unknown);
     RUN_TEST(file_type_names_are_readable);
     RUN_TEST(raw_data_round_trips_through_a_file);

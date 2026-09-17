@@ -3,13 +3,15 @@
 
 SUITE_EXTERN(checksum_suite);
 SUITE_EXTERN(byte_suite);
-SUITE_EXTERN(codec_suite);
 SUITE_EXTERN(prng_suite);
 SUITE_EXTERN(scatter_suite);
 SUITE_EXTERN(carrier_suite);
 SUITE_EXTERN(container_suite);
 SUITE_EXTERN(stego_suite);
 SUITE_EXTERN(file_suite);
+#ifdef VEIL_WITH_VIDEO
+SUITE_EXTERN(video_suite);
+#endif
 GREATEST_MAIN_DEFS();
 
 int main(int argc, char **argv) {
@@ -21,11 +23,13 @@ int main(int argc, char **argv) {
     GREATEST_MAIN_BEGIN();
     RUN_SUITE(checksum_suite);
     RUN_SUITE(byte_suite);
-    RUN_SUITE(codec_suite);
     RUN_SUITE(prng_suite);
     RUN_SUITE(scatter_suite);
     RUN_SUITE(file_suite);
     RUN_SUITE(carrier_suite);
+#ifdef VEIL_WITH_VIDEO
+    RUN_SUITE(video_suite);
+#endif
     RUN_SUITE(container_suite);
     RUN_SUITE(stego_suite);
     GREATEST_MAIN_END();
