@@ -11,13 +11,16 @@ extern "C" {
 struct H264Carrier {
     Carrier carrier;
 
-    AVFormatContext *format_ctx;
-    int stream_index;
+    char *source;
 
-    const AVCodec *decoder;
-    AVCodecContext *decoder_ctx;
-    AVFrame *frame;
-    AVPacket *packet;
+    AVFrame **frames;
+    size_t frame_count;
+    size_t frame_slots;
+    size_t slots;
+
+    AVCodecParameters *params;
+    AVRational time_base;
+    AVRational frame_rate;
 };
 
 struct H264Carrier *h264_carrier_init(const char *target);

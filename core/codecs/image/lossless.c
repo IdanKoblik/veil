@@ -1,7 +1,6 @@
 #include "lossless.h"
 #include "stb_image.h"
 #include "stb_image_write.h"
-#include <sodium/randombytes.h>
 #include <veil/log.h>
 
 static size_t color_channels(const size_t channels) {
@@ -14,27 +13,6 @@ static size_t slot_to_pixel(const struct LosslessCarrier *carrier, const size_t 
         return slot;
 
     return (slot / carrier->colors) * carrier->channels + (slot % carrier->colors);
-}
-
-static void lsb_matching(unsigned char *pixel, unsigned char bit) {
-    unsigned char value = *pixel;
-    if ((value & 1) == bit)
-        return;
-
-    switch (value) {
-    case 0: {
-        value = 1;
-        break;
-    }
-    case 255: {
-        value = 254;
-        break;
-    }
-    default:
-        value += randombytes_uniform(2) ? 1 : -1;
-    }
-
-    *pixel = value;
 }
 
 static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit) {

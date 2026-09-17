@@ -3,7 +3,29 @@
 #include "image/jpeg.h"
 #include "image/lossless.h"
 #include "video/h264.h"
+#include <sodium/randombytes.h>
 #include <veil/log.h>
+
+void lsb_matching(unsigned char *sample, unsigned char bit) {
+    unsigned char value = *sample;
+    if ((value & 1) == bit)
+        return;
+
+    switch (value) {
+    case 0: {
+        value = 1;
+        break;
+    }
+    case 255: {
+        value = 254;
+        break;
+    }
+    default:
+        value += randombytes_uniform(2) ? 1 : -1;
+    }
+
+    *sample = value;
+}
 
 Carrier *figure_carrier(const char *target) {
     if (!target)
