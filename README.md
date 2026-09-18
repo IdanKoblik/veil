@@ -90,7 +90,7 @@ Current and planned carrier types include:
 |---------|------------------------------|--------|
 | PNG     | LSB                          | ✅     |
 | JPEG    | DCT coefficients             | ✅     |
-| MP4     | Video transform coefficients | 🚧     |
+| MP4     | Video transform coefficients | ✅     |
 
 Support is actively evolving as the carrier abstraction is developed.
 
