@@ -19,6 +19,9 @@ media formats and hiding techniques without coupling them to the CLI.
 
 ![demo](assets/demo.png)
 
+> ⚠️ GUI is marked as deprecated and would not get any updates!
+>
+
 ## Install
 
 Prebuilt `veil` binaries for `x86_64` and `aarch64` Linux are published on the
