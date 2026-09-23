@@ -17,9 +17,6 @@ The project is designed around a modular core that separates the steganography
 logic from the carrier format. This makes it possible to support different
 media formats and hiding techniques without coupling them to the CLI.
 
-> ⚠️ GUI is marked as deprecated and would not get any updates!
->
-
 ## Install
 
 Prebuilt `veil` binaries for `x86_64` and `aarch64` Linux are published on the
