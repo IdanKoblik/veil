@@ -85,12 +85,52 @@ TEST scatter_parts_ways_on_a_different_key(void) {
     PASS();
 }
 
-TEST scatter_refuses_a_table_that_overflows(void) {
+TEST scatter_matches_a_full_table_shuffle(void) {
+    // Files already out there were scattered with a table of every slot, the order must not move.
+    enum { SLOTS = 5000 };
+    static size_t table[SLOTS];
+    for (size_t i = 0; i < SLOTS; i++)
+        table[i] = i;
+
+    unsigned char key[PRNG_KEYBYTES];
+    unsigned char nonce[PRNG_NONCEBYTES];
+    memset(key, 0x23, sizeof(key));
+    memset(nonce, 0x42, sizeof(nonce));
+
+    struct Prng prng;
+    prng_init(&prng, key, nonce);
+
+    struct Scatter scatter;
+    ASSERT_EQ(0, scatter_init(&scatter, SLOTS, 1, key, nonce));
+
+    for (size_t pos = 0; pos < SLOTS; pos++) {
+        const size_t index = pos + prng_uniform(&prng, SLOTS - pos);
+        const size_t slot = table[index];
+        table[index] = table[pos];
+        table[pos] = slot;
+
+        ASSERT_EQ(slot, scatter_next(&scatter));
+    }
+
+    ASSERT_EQ(SIZE_MAX, scatter_next(&scatter));
+
+    prng_clear(&prng);
+    scatter_clear(&scatter);
+    PASS();
+}
+
+TEST scatter_handles_a_carrier_too_big_for_a_table(void) {
     struct Scatter scatter;
     unsigned char key[PRNG_KEYBYTES] = {0};
     unsigned char nonce[PRNG_NONCEBYTES] = {0};
 
-    ASSERT(scatter_init(&scatter, SIZE_MAX / 2, 1, key, nonce) < 0);
+    const size_t capacity = SIZE_MAX / 2;
+    ASSERT_EQ(0, scatter_init(&scatter, capacity, 1, key, nonce));
+
+    for (size_t i = 0; i < 10000; i++)
+        ASSERT(scatter_next(&scatter) < capacity);
+
+    scatter_clear(&scatter);
     PASS();
 }
 
@@ -108,6 +148,7 @@ SUITE(scatter_suite) {
     RUN_TEST(scatter_visits_every_slot_once_when_encrypted);
     RUN_TEST(scatter_repeats_for_the_same_key);
     RUN_TEST(scatter_parts_ways_on_a_different_key);
-    RUN_TEST(scatter_refuses_a_table_that_overflows);
+    RUN_TEST(scatter_matches_a_full_table_shuffle);
+    RUN_TEST(scatter_handles_a_carrier_too_big_for_a_table);
     RUN_TEST(scatter_is_empty_after_clear);
 }

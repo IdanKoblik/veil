@@ -7,10 +7,18 @@
 extern "C" {
 #endif
 
+struct ScatterEntry {
+    size_t key;
+    size_t value;
+};
+
 struct Scatter {
     struct Prng prng;
 
-    size_t *slots;
+    struct ScatterEntry *swaps;
+    size_t swaps_size;
+    size_t swaps_used;
+
     size_t capacity;
     size_t pos;
 

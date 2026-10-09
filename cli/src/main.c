@@ -1,5 +1,6 @@
 #include "cmd/command.h"
 #include "flag.h"
+#include "src/progress_bar.h"
 #include "src/usage.h"
 #include <sodium.h>
 #include <stddef.h>
@@ -44,6 +45,7 @@ int main(int argc, char *argv[]) {
     }
 
     harden_process();
+    progress_bar_install();
 
     if (argc < 2) {
         print_usage(argv[0]);

@@ -20,6 +20,7 @@ struct Stream {
 
     unsigned char *bytes;
     size_t len;
+    int mapped;
 
     size_t slots;
 };

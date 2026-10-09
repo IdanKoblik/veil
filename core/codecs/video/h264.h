@@ -36,8 +36,9 @@ struct H264Carrier {
     size_t slots;
 
     unsigned char *lsbs;
-    unsigned char *changed;
+    unsigned char **edits;
     int64_t *timestamps;
+    int loaded;
 };
 
 int h264_reader_open(struct H264Reader *reader, const char *path);
@@ -46,6 +47,7 @@ int h264_reader_seek(struct H264Reader *reader, int64_t timestamp);
 AVRational h264_reader_frame_rate(const struct H264Reader *reader);
 void h264_reader_close(struct H264Reader *reader);
 
+struct H264Carrier *h264_carrier_open(const char *target);
 struct H264Carrier *h264_carrier_init(const char *target);
 
 #ifdef __cplusplus

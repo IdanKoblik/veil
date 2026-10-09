@@ -17,8 +17,6 @@ The project is designed around a modular core that separates the steganography
 logic from the carrier format. This makes it possible to support different
 media formats and hiding techniques without coupling them to the CLI.
 
-![demo](assets/demo.png)
-
 ## Install
 
 Prebuilt `veil` binaries for `x86_64` and `aarch64` Linux are published on the
@@ -90,7 +88,7 @@ Current and planned carrier types include:
 |---------|------------------------------|--------|
 | PNG     | LSB                          | ✅     |
 | JPEG    | DCT coefficients             | ✅     |
-| MP4     | Video transform coefficients | 🚧     |
+| MP4     | Video transform coefficients | ✅     |
 
 Support is actively evolving as the carrier abstraction is developed.
 

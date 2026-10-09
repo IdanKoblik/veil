@@ -52,7 +52,7 @@ Carrier *figure_carrier(const char *target) {
     }
 #ifdef VEIL_WITH_VIDEO
     case TYPE_MP4_VIDEO: {
-        struct H264Carrier *h264 = h264_carrier_init(target);
+        struct H264Carrier *h264 = h264_carrier_open(target);
         if (!h264)
             return NULL;
 
