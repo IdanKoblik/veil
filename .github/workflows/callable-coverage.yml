@@ -18,12 +18,6 @@ env:
     libavutil-dev
     libswscale-dev
     ffmpeg
-    libx11-dev
-    libgl1-mesa-dev
-    libxrandr-dev
-    libxinerama-dev
-    libxcursor-dev
-    libxi-dev
 
 jobs:
   coverage:
@@ -43,8 +37,7 @@ jobs:
         run: |
           cmake -S . -B coverage \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DVEIL_ENABLE_COVERAGE=ON \
-            -DVEIL_BUILD_GUI=ON
+            -DVEIL_ENABLE_COVERAGE=ON
 
       - name: Build
         run: cmake --build coverage -j"$(nproc)"

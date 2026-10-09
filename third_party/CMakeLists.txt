@@ -1,15 +1,12 @@
 file(GLOB VEIL_THIRD_PARTY_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
 )
 file(GLOB VEIL_THIRD_PARTY_HEADERS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.h"
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.hpp"
 )
 
 if(EMSCRIPTEN)
     list(FILTER VEIL_THIRD_PARTY_SOURCES EXCLUDE REGEX "/flag\\.c$")
-    list(FILTER VEIL_THIRD_PARTY_SOURCES EXCLUDE REGEX "/portable-file-dialogs\\.")
 endif()
 
 if(VEIL_THIRD_PARTY_SOURCES)
@@ -26,13 +23,12 @@ if(VEIL_THIRD_PARTY_SOURCES)
 
     target_compile_options(veil_third_party PRIVATE
         $<$<C_COMPILER_ID:GNU,Clang,AppleClang>:-w>
-        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-w>
     )
 
-    # raylib bundles its own copy of stb_image/stb_image_write, so anything
-    # linking both it and veil::core sees every stb symbol defined twice.
-    # The versions match, so emit ours weakly and let raylib's win when both
-    # are present; on its own ours still resolves the reference.
+    # A consumer that links libveil alongside its own copy of
+    # stb_image/stb_image_write would otherwise see every stb symbol defined
+    # twice. Emit ours weakly so theirs wins when both are present; on its own
+    # ours still resolves the reference.
     if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
         set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/stb.c"
             TARGET_DIRECTORY veil_third_party

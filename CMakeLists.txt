@@ -7,21 +7,16 @@ project(Veil
     VERSION ${VEIL_VERSION}
     DESCRIPTION "Steganography toolkit"
     HOMEPAGE_URL "https://github.com/IdanKoblik/veil"
-    LANGUAGES C CXX
+    LANGUAGES C
 )
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_C_EXTENSIONS OFF)
 
-set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-
 include(GNUInstallDirs)
 
 option(VEIL_BUILD_CLI          "Build the veil command line app"     ON)
-option(VEIL_BUILD_GUI          "Build the veil-gui desktop app"      OFF)
 option(VEIL_BUILD_WEB          "Build the wasm module" OFF)
 # There is no FFmpeg for Emscripten to link against, and the web app only takes images.
 if(EMSCRIPTEN)
@@ -77,10 +72,6 @@ if(VEIL_ENABLE_COVERAGE)
     target_link_options(veil_options INTERFACE --coverage)
 endif()
 
-if(VEIL_BUILD_GUI AND NOT VEIL_WITH_VIDEO)
-    message(FATAL_ERROR "VEIL_BUILD_GUI needs VEIL_WITH_VIDEO")
-endif()
-
 if(VEIL_BUILD_TESTS)
     include(CTest)
     add_subdirectory(testing)
@@ -90,10 +81,6 @@ add_subdirectory(core)
 
 if(VEIL_BUILD_CLI)
     add_subdirectory(cli)
-endif()
-
-if(VEIL_BUILD_GUI)
-    add_subdirectory(gui)
 endif()
 
 if(VEIL_BUILD_WEB)

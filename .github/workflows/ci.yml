@@ -36,7 +36,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
-  # All three suites start immediately and in parallel: they are the gate
+  # Both suites start immediately and in parallel: they are the gate
   # everything downstream waits on.
   core-tests:
     name: Core
@@ -52,15 +52,6 @@ jobs:
     with:
       suite: cli
 
-  gui-tests:
-    name: GUI
-    uses: ./.github/workflows/callable-tests.yml
-    with:
-      suite: gui
-      # The GUI links the library directly, so the CLI plays no part here.
-      build-cli: false
-      build-gui: true
-
   web:
     name: Web
     uses: ./.github/workflows/callable-web.yml
@@ -71,7 +62,7 @@ jobs:
   # shown the tree is actually sound.
   format:
     name: Format
-    needs: [core-tests, cli-tests, gui-tests]
+    needs: [core-tests, cli-tests]
     uses: ./.github/workflows/callable-format.yml
 
   changelog:
@@ -83,12 +74,12 @@ jobs:
 
   coverage:
     name: Coverage
-    needs: [core-tests, cli-tests, gui-tests]
+    needs: [core-tests, cli-tests]
     uses: ./.github/workflows/callable-coverage.yml
 
   # Pushing to main publishes the page, and so does cutting a release, once the
   # release itself is out -- so the two never disagree about what is live.
-  # format and coverage stand in for the three suites here: both already wait on
+  # format and coverage stand in for the two suites here: both already wait on
   # all of them, and neither has run if any of them failed.
   pages:
     name: Deploy to Pages
@@ -262,7 +253,7 @@ jobs:
           if [ "$DRAFT" = "true" ]; then args+=(--draft); fi
           if [ "$PRERELEASE" = "true" ]; then args+=(--prerelease); fi
 
-          # Loose assets only: veil and veil-gui per architecture (both matched by
+          # Loose assets only: the veil CLI per architecture (matched by
           # dist/veil-*), libveil.a to link against, the man page and the checksum list.
           gh release create "$TAG" "${args[@]}" \
             dist/veil-* \

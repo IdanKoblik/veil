@@ -49,14 +49,21 @@ cd veil/packaging/arch
 makepkg -si
 ```
 
-**AppImage (GUI):**
+**Web app:**
 
-`veil-gui` can be packaged as an AppImage. The script requires `cmake`, `curl`
-and ImageMagick (`magick`), and downloads `linuxdeploy` on first run:
+veil also runs entirely in the browser, compiled to WebAssembly. Nothing is
+uploaded: the carrier, the payload and the passphrase never leave the tab. The
+latest build is published to [GitHub Pages](https://idankoblik.github.io/veil/).
+
+To build and serve it locally you need the [Emscripten](https://emscripten.org/)
+toolchain (`emcc` on `PATH`); everything else is fetched into `web/.deps`:
 ```sh
-./packaging/build_appimage.sh
-./Veil-*.AppImage
+./web/build.sh
+python3 -m http.server -d web 8000
 ```
+
+The WebAssembly build handles image carriers (PNG and JPEG). Video carriers
+need FFmpeg, which has no Emscripten port, so they remain CLI only.
 
 ## Build from source
 
