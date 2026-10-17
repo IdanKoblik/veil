@@ -22,7 +22,6 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "VEIL_BUILD_CLI": "ON",
-                "VEIL_BUILD_GUI": "ON",
                 "VEIL_BUILD_TESTS": "ON"
             }
         },
@@ -33,7 +32,6 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "VEIL_BUILD_CLI": "ON",
-                "VEIL_BUILD_GUI": "ON",
                 "VEIL_WARNINGS_AS_ERRORS": "ON",
                 "VEIL_BUILD_TESTS": "OFF"
             }
@@ -45,19 +43,6 @@
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Release",
                 "VEIL_BUILD_CLI": "ON",
-                "VEIL_BUILD_GUI": "OFF",
-                "VEIL_WARNINGS_AS_ERRORS": "ON",
-                "VEIL_BUILD_TESTS": "OFF"
-            }
-        },
-        {
-            "name": "gui",
-            "displayName": "Optimised build of the desktop app only",
-            "inherits": "base",
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
-                "VEIL_BUILD_CLI": "OFF",
-                "VEIL_BUILD_GUI": "ON",
                 "VEIL_WARNINGS_AS_ERRORS": "ON",
                 "VEIL_BUILD_TESTS": "OFF"
             }
@@ -86,10 +71,6 @@
         {
             "name": "cli",
             "configurePreset": "cli"
-        },
-        {
-            "name": "gui",
-            "configurePreset": "gui"
         },
         {
             "name": "coverage",

@@ -1,12 +1,12 @@
 name: Tests
 
-# One ctest suite across the compiler matrix. Called once per suite so core, cli
-# and gui report as separate checks and fail independently.
+# One ctest suite across the compiler matrix. Called once per suite so core and
+# cli report as separate checks and fail independently.
 on:
   workflow_call:
     inputs:
       suite:
-        description: 'ctest suite to run: core, cli or gui'
+        description: 'ctest suite to run: core or cli'
         required: true
         type: string
       build-cli:
@@ -14,11 +14,6 @@ on:
         required: false
         type: boolean
         default: true
-      build-gui:
-        description: 'Build the GUI. Only the gui suite needs it, and it drags in X11, a GL stack and the raylib and ImGui fetch.'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -36,15 +31,6 @@ env:
     libavutil-dev
     libswscale-dev
     ffmpeg
-  # Only the GUI needs a window system and a GL stack, so these are installed on
-  # demand and the core and CLI jobs stay lean.
-  APT_GUI_PACKAGES: >-
-    libx11-dev
-    libgl1-mesa-dev
-    libxrandr-dev
-    libxinerama-dev
-    libxcursor-dev
-    libxi-dev
 
 jobs:
   test:
@@ -55,13 +41,6 @@ jobs:
       matrix:
         os: [ubuntu-22.04, ubuntu-24.04]
         cc: [gcc, clang]
-        # The GUI is C++, so the matrix has to name a C++ compiler too rather
-        # than leaving CMake to pick whatever the runner defaults to.
-        include:
-          - cc: gcc
-            cxx: g++
-          - cc: clang
-            cxx: clang++
     steps:
       - uses: actions/checkout@v4
 
@@ -70,19 +49,13 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends $APT_PACKAGES ${{ matrix.cc }}
 
-      - name: Install GUI dependencies
-        if: inputs.build-gui
-        run: sudo apt-get install -y --no-install-recommends $APT_GUI_PACKAGES
-
       - name: Configure
         run: |
           cmake -S . -B build \
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_C_COMPILER=${{ matrix.cc }} \
-            -DCMAKE_CXX_COMPILER=${{ matrix.cxx }} \
             -DVEIL_WARNINGS_AS_ERRORS=ON \
-            -DVEIL_BUILD_CLI=${{ inputs.build-cli && 'ON' || 'OFF' }} \
-            -DVEIL_BUILD_GUI=${{ inputs.build-gui && 'ON' || 'OFF' }}
+            -DVEIL_BUILD_CLI=${{ inputs.build-cli && 'ON' || 'OFF' }}
 
       - name: Build
         run: cmake --build build -j"$(nproc)"

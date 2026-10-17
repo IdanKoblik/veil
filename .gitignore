@@ -1,11 +1,9 @@
 # Local
-imgui.ini
 build/*
 coverage/*
 /veil
 compile_commands.json
 CMakeUserPresets.json
-*.AppImage
 core/version.h
 .idea/*
 

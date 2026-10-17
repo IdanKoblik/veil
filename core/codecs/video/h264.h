@@ -2,11 +2,6 @@
 
 #include "../carrier.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-// libav's headers carry no C++ guards of their own.
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 
@@ -49,7 +44,3 @@ void h264_reader_close(struct H264Reader *reader);
 
 struct H264Carrier *h264_carrier_open(const char *target);
 struct H264Carrier *h264_carrier_init(const char *target);
-
-#ifdef __cplusplus
-}
-#endif

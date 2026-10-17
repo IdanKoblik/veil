@@ -5,6 +5,26 @@ All notable changes to Veil are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- Promoted the WebAssembly build to a first-class front end: the browser app
+  (`web/`) is built and round-trip tested in CI and published to GitHub Pages.
+  It hides and reveals payloads in PNG and JPEG carriers entirely client side,
+  with nothing leaving the tab.
+
+### Removed
+
+- **BREAKING:** the `veil-gui` desktop app and its ImGui/raylib stack are gone,
+  along with the `VEIL_BUILD_GUI` option, the `gui` CMake preset and the
+  `packaging/build_appimage.sh` AppImage packaging. The browser app replaces it.
+  Release artifacts no longer include `veil-gui-<version>-linux-<arch>`.
+
+### Changed
+
+- The project now builds as C only; the C++ toolchain is no longer required.
+
 ## [3.0.0]
 
 ### Changed

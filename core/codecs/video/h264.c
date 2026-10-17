@@ -12,6 +12,27 @@
 #define H264_ENCODER_THREADS 8
 #define H264_ENCODER_PRESET "ultrafast"
 
+// Check-log-return for the libav failure pattern that recurs all over this
+// file. AV_TRY takes a call that returns negative on error; AV_NEED a pointer
+// that is null on failure. Both log and bail with -1, so they fit only the
+// helpers that return int and treat -1 as the error -- not the carrier paths
+// that unwind through a goto.
+#define AV_TRY(expr, ...)       \
+    do {                        \
+        if ((expr) < 0) {       \
+            ERROR(__VA_ARGS__); \
+            return -1;          \
+        }                       \
+    } while (0)
+
+#define AV_NEED(ptr, ...)       \
+    do {                        \
+        if (!(ptr)) {           \
+            ERROR(__VA_ARGS__); \
+            return -1;          \
+        }                       \
+    } while (0)
+
 struct H264Writer {
     const struct H264Reader *source;
 
@@ -26,21 +47,11 @@ struct H264Writer {
 int h264_reader_open(struct H264Reader *reader, const char *path) {
     memset(reader, 0, sizeof(*reader));
 
-    if (avformat_open_input(&reader->format_ctx, path, NULL, NULL) < 0) {
-        ERROR("Failed to open the video (%s)", path);
-        return -1;
-    }
-
-    if (avformat_find_stream_info(reader->format_ctx, NULL) < 0) {
-        ERROR("Failed to read the stream info (%s)", path);
-        return -1;
-    }
+    AV_TRY(avformat_open_input(&reader->format_ctx, path, NULL, NULL), "Failed to open the video (%s)", path);
+    AV_TRY(avformat_find_stream_info(reader->format_ctx, NULL), "Failed to read the stream info (%s)", path);
 
     reader->stream_index = av_find_best_stream(reader->format_ctx, AVMEDIA_TYPE_VIDEO, -1, -1, NULL, 0);
-    if (reader->stream_index < 0) {
-        ERROR("The file has no video stream (%s)", path);
-        return -1;
-    }
+    AV_TRY(reader->stream_index, "The file has no video stream (%s)", path);
 
     const AVCodecParameters *params = reader->format_ctx->streams[reader->stream_index]->codecpar;
     if (params->codec_id != AV_CODEC_ID_H264) {
@@ -49,35 +60,20 @@ int h264_reader_open(struct H264Reader *reader, const char *path) {
     }
 
     const AVCodec *decoder = avcodec_find_decoder(AV_CODEC_ID_H264);
-    if (!decoder) {
-        ERROR("No H264 decoder is available");
-        return -1;
-    }
+    AV_NEED(decoder, "No H264 decoder is available");
 
     reader->decoder_ctx = avcodec_alloc_context3(decoder);
-    if (!reader->decoder_ctx) {
-        ERROR("Failed to allocate the H264 decoder context");
-        return -1;
-    }
+    AV_NEED(reader->decoder_ctx, "Failed to allocate the H264 decoder context");
 
     // Carries the SPS/PPS extradata, without it the decoder can't read MP4 packets.
-    if (avcodec_parameters_to_context(reader->decoder_ctx, params) < 0) {
-        ERROR("Failed to copy the stream parameters into the decoder");
-        return -1;
-    }
+    AV_TRY(avcodec_parameters_to_context(reader->decoder_ctx, params), "Failed to copy the stream parameters into the decoder");
 
     // libavcodec decodes on one thread unless asked, which makes long videos crawl.
     reader->decoder_ctx->thread_count = 0;
-    if (avcodec_open2(reader->decoder_ctx, decoder, NULL) < 0) {
-        ERROR("Failed to open the H264 decoder");
-        return -1;
-    }
+    AV_TRY(avcodec_open2(reader->decoder_ctx, decoder, NULL), "Failed to open the H264 decoder");
 
     reader->packet = av_packet_alloc();
-    if (!reader->packet) {
-        ERROR("Failed to allocate a packet");
-        return -1;
-    }
+    AV_NEED(reader->packet, "Failed to allocate a packet");
 
     return 0;
 }
@@ -103,10 +99,7 @@ int h264_reader_next(struct H264Reader *reader, AVFrame *frame, H264PacketVisito
         if (av_read_frame(reader->format_ctx, reader->packet) < 0) {
             // The decoder holds frames back for reordering until it is flushed.
             reader->draining = 1;
-            if (avcodec_send_packet(reader->decoder_ctx, NULL) < 0) {
-                ERROR("Failed to flush the H264 decoder");
-                return -1;
-            }
+            AV_TRY(avcodec_send_packet(reader->decoder_ctx, NULL), "Failed to flush the H264 decoder");
 
             continue;
         }
@@ -130,10 +123,7 @@ int h264_reader_next(struct H264Reader *reader, AVFrame *frame, H264PacketVisito
 }
 
 int h264_reader_seek(struct H264Reader *reader, const int64_t timestamp) {
-    if (av_seek_frame(reader->format_ctx, reader->stream_index, timestamp, AVSEEK_FLAG_BACKWARD) < 0) {
-        ERROR("Failed to seek the video");
-        return -1;
-    }
+    AV_TRY(av_seek_frame(reader->format_ctx, reader->stream_index, timestamp, AVSEEK_FLAG_BACKWARD), "Failed to seek the video");
 
     avcodec_flush_buffers(reader->decoder_ctx);
     reader->draining = 0;
@@ -153,16 +143,10 @@ void h264_reader_close(struct H264Reader *reader) {
 
 static int encoder_open(struct H264Writer *writer, int width, int height, int pixel_format) {
     const AVCodec *encoder = avcodec_find_encoder_by_name(H264_ENCODER);
-    if (!encoder) {
-        ERROR("FFmpeg was built without %s", H264_ENCODER);
-        return -1;
-    }
+    AV_NEED(encoder, "FFmpeg was built without %s", H264_ENCODER);
 
     writer->encoder_ctx = avcodec_alloc_context3(encoder);
-    if (!writer->encoder_ctx) {
-        ERROR("Failed to allocate the H264 encoder context");
-        return -1;
-    }
+    AV_NEED(writer->encoder_ctx, "Failed to allocate the H264 encoder context");
 
     const AVStream *stream = writer->source->format_ctx->streams[writer->source->stream_index];
     const AVCodecParameters *params = stream->codecpar;
@@ -187,21 +171,12 @@ static int encoder_open(struct H264Writer *writer, int width, int height, int pi
     ctx->thread_count = FFMIN(av_cpu_count(), H264_ENCODER_THREADS);
 
     // Any quantisation would round the LSBs away, qp 0 makes x264 skip it.
-    if (av_opt_set(ctx->priv_data, "qp", "0", 0) < 0) {
-        ERROR("Failed to put %s into lossless mode", H264_ENCODER);
-        return -1;
-    }
+    AV_TRY(av_opt_set(ctx->priv_data, "qp", "0", 0), "Failed to put %s into lossless mode", H264_ENCODER);
 
     // Lossless output is bit-exact on every preset, the slower ones only shave size, at 8x the time on medium.
-    if (av_opt_set(ctx->priv_data, "preset", H264_ENCODER_PRESET, 0) < 0) {
-        ERROR("Failed to set the %s preset", H264_ENCODER);
-        return -1;
-    }
+    AV_TRY(av_opt_set(ctx->priv_data, "preset", H264_ENCODER_PRESET, 0), "Failed to set the %s preset", H264_ENCODER);
 
-    if (avcodec_open2(ctx, encoder, NULL) < 0) {
-        ERROR("Failed to open %s", H264_ENCODER);
-        return -1;
-    }
+    AV_TRY(avcodec_open2(ctx, encoder, NULL), "Failed to open %s", H264_ENCODER);
 
     return 0;
 }
@@ -210,10 +185,7 @@ static int streams_map(struct H264Writer *writer) {
     const AVFormatContext *input = writer->source->format_ctx;
 
     writer->stream_map = malloc(input->nb_streams * sizeof(*writer->stream_map));
-    if (!writer->stream_map) {
-        ERROR("Failed to allocate the stream map");
-        return -1;
-    }
+    AV_NEED(writer->stream_map, "Failed to allocate the stream map");
 
     for (unsigned int i = 0; i < input->nb_streams; i++) {
         const AVStream *in = input->streams[i];
@@ -225,16 +197,10 @@ static int streams_map(struct H264Writer *writer) {
             continue;
 
         AVStream *out = avformat_new_stream(writer->output_ctx, NULL);
-        if (!out) {
-            ERROR("Failed to add an output stream");
-            return -1;
-        }
+        AV_NEED(out, "Failed to add an output stream");
 
         const int result = is_video ? avcodec_parameters_from_context(out->codecpar, writer->encoder_ctx) : avcodec_parameters_copy(out->codecpar, in->codecpar);
-        if (result < 0) {
-            ERROR("Failed to set up output stream %u", i);
-            return -1;
-        }
+        AV_TRY(result, "Failed to set up output stream %u", i);
 
         out->codecpar->codec_tag = 0;
         out->time_base = is_video ? writer->encoder_ctx->time_base : in->time_base;
@@ -252,16 +218,10 @@ static int h264_writer_open(struct H264Writer *writer, const struct H264Reader *
     writer->source = source;
     writer->video_output = -1;
 
-    if (avformat_alloc_output_context2(&writer->output_ctx, NULL, "mp4", path) < 0) {
-        ERROR("Failed to set up the MP4 muxer");
-        return -1;
-    }
+    AV_TRY(avformat_alloc_output_context2(&writer->output_ctx, NULL, "mp4", path), "Failed to set up the MP4 muxer");
 
     writer->packet = av_packet_alloc();
-    if (!writer->packet) {
-        ERROR("Failed to allocate a packet");
-        return -1;
-    }
+    AV_NEED(writer->packet, "Failed to allocate a packet");
 
     if (encoder_open(writer, width, height, pixel_format) < 0 || streams_map(writer) < 0)
         return -1;
@@ -271,10 +231,7 @@ static int h264_writer_open(struct H264Writer *writer, const struct H264Reader *
         return -1;
     }
 
-    if (avformat_write_header(writer->output_ctx, NULL) < 0) {
-        ERROR("Failed to write the MP4 header (%s)", path);
-        return -1;
-    }
+    AV_TRY(avformat_write_header(writer->output_ctx, NULL), "Failed to write the MP4 header (%s)", path);
 
     return 0;
 }
@@ -292,10 +249,7 @@ static int h264_writer_copy(AVPacket *packet, void *ctx) {
     packet->stream_index = out_index;
     packet->pos = -1;
 
-    if (av_interleaved_write_frame(writer->output_ctx, packet) < 0) {
-        ERROR("Failed to copy a packet into the output");
-        return -1;
-    }
+    AV_TRY(av_interleaved_write_frame(writer->output_ctx, packet), "Failed to copy a packet into the output");
 
     return 0;
 }
@@ -318,10 +272,7 @@ static int packets_flush(struct H264Writer *writer) {
         writer->packet->stream_index = writer->video_output;
         av_packet_rescale_ts(writer->packet, writer->encoder_ctx->time_base, out->time_base);
 
-        if (av_interleaved_write_frame(writer->output_ctx, writer->packet) < 0) {
-            ERROR("Failed to write a video packet");
-            return -1;
-        }
+        AV_TRY(av_interleaved_write_frame(writer->output_ctx, writer->packet), "Failed to write a video packet");
     }
 }
 
@@ -329,10 +280,7 @@ static int h264_writer_encode(struct H264Writer *writer, AVFrame *frame) {
     if (frame)
         frame->pict_type = AV_PICTURE_TYPE_NONE;
 
-    if (avcodec_send_frame(writer->encoder_ctx, frame) < 0) {
-        ERROR("Failed to feed a frame to %s", H264_ENCODER);
-        return -1;
-    }
+    AV_TRY(avcodec_send_frame(writer->encoder_ctx, frame), "Failed to feed a frame to %s", H264_ENCODER);
 
     return packets_flush(writer);
 }
@@ -341,10 +289,7 @@ static int h264_writer_finish(struct H264Writer *writer) {
     if (h264_writer_encode(writer, NULL) < 0)
         return -1;
 
-    if (av_write_trailer(writer->output_ctx) < 0) {
-        ERROR("Failed to finish the MP4");
-        return -1;
-    }
+    AV_TRY(av_write_trailer(writer->output_ctx), "Failed to finish the MP4");
 
     return 0;
 }
@@ -420,19 +365,11 @@ static int frames_grow(struct H264Carrier *carrier, const size_t expected) {
         capacity = expected;
 
     unsigned char *lsbs = realloc(carrier->lsbs, bit_bytes(capacity * carrier->frame_slots));
-    if (!lsbs) {
-        ERROR("Failed to grow the LSB map");
-        return -1;
-    }
-
+    AV_NEED(lsbs, "Failed to grow the LSB map");
     carrier->lsbs = lsbs;
 
     int64_t *timestamps = realloc(carrier->timestamps, capacity * sizeof(*timestamps));
-    if (!timestamps) {
-        ERROR("Failed to grow the frame timestamps");
-        return -1;
-    }
-
+    AV_NEED(timestamps, "Failed to grow the frame timestamps");
     carrier->timestamps = timestamps;
     carrier->frame_capacity = capacity;
     return 0;
@@ -611,20 +548,13 @@ static int c_write(Carrier *carrier, const size_t slot, const unsigned char bit)
 
     if (!video->edits) {
         video->edits = calloc(video->frame_count, sizeof(*video->edits));
-        if (!video->edits) {
-            ERROR("Failed to allocate the change map");
-            return -1;
-        }
+        AV_NEED(video->edits, "Failed to allocate the change map");
     }
 
     // Kept per frame, so saving can skip every frame the payload never reached.
     if (!edit) {
         edit = calloc(2 * bytes, 1);
-        if (!edit) {
-            ERROR("Failed to allocate the change map");
-            return -1;
-        }
-
+        AV_NEED(edit, "Failed to allocate the change map");
         video->edits[index] = edit;
     }
 
@@ -673,10 +603,7 @@ static int frame_apply(const struct H264Carrier *carrier, AVFrame *frame, const 
     if (!edit)
         return 0;
 
-    if (av_frame_make_writable(frame) < 0) {
-        ERROR("Failed to make a decoded frame writable");
-        return -1;
-    }
+    AV_TRY(av_frame_make_writable(frame), "Failed to make a decoded frame writable");
 
     const size_t width = (size_t)carrier->width;
     const size_t bytes = bit_bytes(carrier->frame_slots);
